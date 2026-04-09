@@ -1,5 +1,7 @@
 package com.fashionsensor.backend.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,7 +15,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {
+    "http://127.0.0.1:3000",
+    "http://localhost:3000"
+})
 public class FashionController {
 
     private static final Logger logger = LoggerFactory.getLogger(FashionController.class);
