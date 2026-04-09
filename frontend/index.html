@@ -42,12 +42,12 @@
       <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <a href="#home" class="text-lg font-semibold tracking-[0.18em] text-ink uppercase">Fashion Sensor</a>
 
-        <nav class="hidden items-center gap-8 text-sm font-medium text-black/70 md:flex">
-          <a href="#home" class="transition hover:text-black">Home</a>
-          <a href="#explore" class="transition hover:text-black">Explore</a>
-          <a href="#ai-outfit" class="transition hover:text-black">AI Outfit</a>
-          <a href="#wardrobe" class="transition hover:text-black">Wardrobe</a>
-          <a href="#contact" class="transition hover:text-black">Contact</a>
+        <nav class="hidden items-center gap-4 text-sm font-medium text-black/70 md:flex">
+          <button type="button" class="nav-tab is-active transition hover:text-black" data-section-target="home">Home</button>
+          <button type="button" class="nav-tab transition hover:text-black" data-section-target="explore">Explore</button>
+          <button type="button" class="nav-tab transition hover:text-black" data-section-target="ai-outfit">AI Outfit</button>
+          <button type="button" class="nav-tab transition hover:text-black" data-section-target="wardrobe">Wardrobe</button>
+          <button type="button" class="nav-tab transition hover:text-black" data-section-target="contact">Contact</button>
         </nav>
 
         <div class="flex items-center gap-3">
@@ -123,26 +123,49 @@
         </div>
       </section>
 
-      <section id="explore" class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+      <section id="explore" class="section-panel mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8" data-section="explore">
         <div class="mb-6 flex items-end justify-between gap-4">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Shop by focus</p>
-            <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">Categories</h2>
+            <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">Explore Styles</h2>
           </div>
           <p class="max-w-xl text-sm leading-6 text-black/55">
-            Browse styling modes inspired by modern fashion storefronts while keeping your AI outfit flow front and center.
+            Switch between audiences and style moods to refresh the inspiration cards without leaving the page.
           </p>
         </div>
 
-        <div class="flex flex-wrap gap-3">
-          <button type="button" class="category-tab is-active">Men</button>
-          <button type="button" class="category-tab">Women</button>
-          <button type="button" class="category-tab">Shoes</button>
-          <button type="button" class="category-tab">Accessories</button>
+        <div class="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
+          <div class="rounded-[2rem] border border-black/5 bg-white/75 p-6 shadow-luxe">
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-black/40">Audience</p>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button type="button" class="category-tab is-active" data-filter-group="audience" data-filter-value="men">Men</button>
+              <button type="button" class="category-tab" data-filter-group="audience" data-filter-value="women">Women</button>
+              <button type="button" class="category-tab" data-filter-group="audience" data-filter-value="kids">Kids</button>
+            </div>
+
+            <p class="mt-6 text-xs font-semibold uppercase tracking-[0.24em] text-black/40">Mood</p>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button type="button" class="category-tab is-active" data-filter-group="style" data-filter-value="all">All</button>
+              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="genz">Gen Z</button>
+              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="casual">Casual</button>
+              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="formal">Formal</button>
+              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="minimal">Minimal</button>
+            </div>
+
+            <div class="mt-8 rounded-[1.5rem] bg-[#f5efe4] p-5">
+              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-black/40">Live selection</p>
+              <h3 id="activeFilterTitle" class="mt-3 font-display text-3xl text-ink">Men / All Looks</h3>
+              <p id="activeFilterDescription" class="mt-3 text-sm leading-6 text-black/60">
+                A mixed set of smart casual and trend-driven looks for everyday inspiration.
+              </p>
+            </div>
+          </div>
+
+          <div id="exploreGrid" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3"></div>
         </div>
       </section>
 
-      <section id="ai-outfit" class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <section id="ai-outfit" class="section-panel mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8" data-section="ai-outfit">
         <div class="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
           <section class="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-luxe backdrop-blur sm:p-8">
             <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -188,10 +211,20 @@
     <label class="field-shell">
       <span class="field-label">Style vibe</span>
       <select id="style" name="style" class="field-input">
+        <option value="casual">Casual</option>
         <option value="genz">Gen Z / Trendy</option>
         <option value="minimal">Minimal / Clean</option>
         <option value="formal">Formal</option>
         <option value="athleisure">Athleisure</option>
+      </select>
+    </label>
+
+    <label class="field-shell">
+      <span class="field-label">For</span>
+      <select id="audience" name="audience" class="field-input">
+        <option value="men">Men</option>
+        <option value="women">Women</option>
+        <option value="kids">Kids</option>
       </select>
     </label>
 
@@ -227,11 +260,9 @@
   </div>
 
 </form>
-            <div class="mt-6">
- 
           </section>
 
-          <aside id="wardrobe" class="rounded-[2rem] border border-black/5 bg-[#f1ebe0] p-6 shadow-luxe sm:p-8">
+          <aside id="wardrobe" class="section-panel rounded-[2rem] border border-black/5 bg-[#f1ebe0] p-6 shadow-luxe sm:p-8" data-section="wardrobe">
             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Wardrobe upload</p>
             <h3 class="mt-3 font-display text-4xl text-ink">Preview &amp; Tips</h3>
             <p class="mt-4 max-w-md text-sm leading-6 text-black/60">
@@ -279,39 +310,63 @@
       <section id="results" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Suggested outfits</p>
-            <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">Curated Grid</h2>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Outfit result</p>
+            <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">AI Styling Board</h2>
           </div>
           <p class="max-w-xl text-sm leading-6 text-black/55">
-            The AI recommendation appears here in a product-style layout with editorial cards and polished hover states.
+            Your generated outfit, detected pieces, shopping shortcuts, and Pinterest inspiration all appear here.
           </p>
         </div>
 
-        <div id="suggestedGrid" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4"></div>
-      </section>
+        <div class="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <article class="result-panel">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p class="result-kicker">Recommended outfit</p>
+                <h3 id="outfitHeading" class="mt-3 font-display text-4xl text-ink">Ready for your next look</h3>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <button type="button" id="previousOutfitButton" class="secondary-action">Previous Outfit</button>
+                <button type="button" id="nextOutfitButton" class="secondary-action">Next Outfit</button>
+                <button type="button" id="rethinkOutfitButton" class="secondary-action">Suggest Another Outfit</button>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <p id="resultStyle" class="result-style-chip">Style: Casual</p>
+              <p id="activeAudienceChip" class="result-audience-chip">Audience: Men</p>
+            </div>
+            <p id="resultSource" class="mt-4 text-sm leading-6 text-black/55">Upload an image or use the form to generate a tailored outfit recommendation.</p>
+            <div id="outfitCards" class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
+          </article>
 
-      <section class="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div class="grid gap-6 lg:grid-cols-3">
-          <article class="promo-card promo-card-minimal">
-            <p class="promo-kicker">Featured Edit</p>
-            <h3>Minimal Style Collection</h3>
-            <p>Clean silhouettes, neutral layering, and elevated basics for a quiet luxury feel.</p>
+          <article class="result-panel">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="result-kicker">Detected items</p>
+                <h3 class="mt-3 font-display text-3xl text-ink">Shopping shortlist</h3>
+              </div>
+              <a id="pinterestLink" href="https://in.pinterest.com/search/pins/?q=casual%20men%20outfit" target="_blank" rel="noreferrer" class="shop-link">
+                Open Pinterest
+              </a>
+            </div>
+            <div id="itemsList" class="mt-6 grid gap-4"></div>
           </article>
-          <article class="promo-card promo-card-street">
-            <p class="promo-kicker">Trending Now</p>
-            <h3>Streetwear Picks</h3>
-            <p>Relaxed tailoring, statement sneakers, and modern proportions for sharper daily looks.</p>
+        </div>
+
+        <div class="mt-6 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+          <article class="result-panel">
+            <p class="result-kicker">Pinterest-style inspiration</p>
+            <h3 id="pinterestHeading" class="mt-3 font-display text-3xl text-ink">Casual men outfit</h3>
+            <p id="pinterestDescription" class="mt-4 text-sm leading-6 text-black/60">
+              Open Pinterest to explore more styling references that match the current audience and mood.
+            </p>
           </article>
-          <article class="promo-card promo-card-evening">
-            <p class="promo-kicker">Night Edit</p>
-            <h3>After Dark Dressing</h3>
-            <p>Structured layers and rich textures designed for dressier evenings and special plans.</p>
-          </article>
+          <div id="pinterest-container" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4"></div>
         </div>
       </section>
     </main>
 
-    <footer id="contact" class="border-t border-black/5 bg-white/60">
+    <footer id="contact" class="section-panel border-t border-black/5 bg-white/60" data-section="contact">
       <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
         <div>
           <p class="text-lg font-semibold uppercase tracking-[0.18em] text-ink">Fashion Sensor</p>
@@ -322,17 +377,17 @@
         <div>
           <p class="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">Navigate</p>
           <div class="mt-4 grid gap-2 text-sm text-black/60">
-            <a href="#home" class="transition hover:text-black">Home</a>
-            <a href="#explore" class="transition hover:text-black">Explore</a>
-            <a href="#ai-outfit" class="transition hover:text-black">AI Outfit</a>
+            <button type="button" class="footer-nav transition hover:text-black text-left" data-section-target="home">Home</button>
+            <button type="button" class="footer-nav transition hover:text-black text-left" data-section-target="explore">Explore</button>
+            <button type="button" class="footer-nav transition hover:text-black text-left" data-section-target="ai-outfit">AI Outfit</button>
           </div>
         </div>
         <div>
           <p class="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">Collections</p>
           <div class="mt-4 grid gap-2 text-sm text-black/60">
             <a href="#results" class="transition hover:text-black">Suggested Outfits</a>
-            <a href="#wardrobe" class="transition hover:text-black">Wardrobe Upload</a>
-            <a href="#contact" class="transition hover:text-black">Support</a>
+            <button type="button" class="footer-nav transition hover:text-black text-left" data-section-target="wardrobe">Wardrobe Upload</button>
+            <button type="button" class="footer-nav transition hover:text-black text-left" data-section-target="contact">Support</button>
           </div>
         </div>
         <div>

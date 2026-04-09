@@ -7,50 +7,140 @@ const submitButton = document.getElementById("submitButton");
 const loadingSpinner = document.getElementById("loadingSpinner");
 const buttonLabel = submitButton?.querySelector(".button-label");
 const formStatus = document.getElementById("formStatus");
-const suggestedGrid = document.getElementById("suggestedGrid");
+const exploreGrid = document.getElementById("exploreGrid");
+const activeFilterTitle = document.getElementById("activeFilterTitle");
+const activeFilterDescription = document.getElementById("activeFilterDescription");
+const outfitHeading = document.getElementById("outfitHeading");
+const resultStyle = document.getElementById("resultStyle");
+const resultSource = document.getElementById("resultSource");
+const activeAudienceChip = document.getElementById("activeAudienceChip");
+const itemsList = document.getElementById("itemsList");
+const outfitCards = document.getElementById("outfitCards");
+const pinterestLink = document.getElementById("pinterestLink");
+const pinterestHeading = document.getElementById("pinterestHeading");
+const pinterestDescription = document.getElementById("pinterestDescription");
+const pinterestContainer = document.getElementById("pinterest-container");
+const audienceSelect = document.getElementById("audience");
+const styleSelect = document.getElementById("style");
+const previousOutfitButton = document.getElementById("previousOutfitButton");
+const nextOutfitButton = document.getElementById("nextOutfitButton");
+const rethinkOutfitButton = document.getElementById("rethinkOutfitButton");
 
 const API_URL = "http://localhost:8080/api/suggest";
 let previewUrl = null;
 
-const placeholderProducts = [
-  {
-    image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80",
-    itemType: "Top",
-    name: "Oversized White Tee",
-    style: "Minimal",
-    description: "Soft tailoring and elevated basics for clean everyday dressing.",
-    tags: ["Editorial", "Minimal", "Everyday"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80",
-    itemType: "Bottom",
-    name: "Black Cargo Pants",
-    style: "Gen Z",
-    description: "Relaxed silhouettes with statement proportions and confident casual energy.",
-    tags: ["Street", "Weekend", "Layered"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
-    itemType: "Shoes",
-    name: "Chunky Sneakers",
-    style: "Formal",
-    description: "Structured separates that balance polished tailoring with comfort.",
-    tags: ["Formal", "Office", "Sharp"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
-    itemType: "Accessories",
-    name: "Leather Crossbody",
-    style: "Party",
-    description: "Textured layers and richer tones built for dinner dates and evenings out.",
-    tags: ["Night", "Dressy", "Textures"],
-  },
+const uiState = {
+  section: "home",
+  audience: audienceSelect?.value || "men",
+  style: "all",
+  resultSet: null,
+  activeOutfitIndex: 0,
+  formPayload: null,
+};
+
+const exploreCards = [
+  { title: "Off-Duty Layers", description: "Relaxed silhouettes with clean sneakers and soft neutrals for polished daily wear.", audience: "men", style: "casual", image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80" },
+  { title: "Minimal Tailoring", description: "Structured basics, monochrome layers, and calm textures for sharp modern dressing.", audience: "men", style: "minimal", image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80" },
+  { title: "Gen Z Street Mix", description: "Boxy fits, denim volume, and statement sneakers for trend-first styling.", audience: "men", style: "genz", image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80" },
+  { title: "Refined Work Edit", description: "Crisp separates, darker tailoring, and smart footwear for office-ready confidence.", audience: "men", style: "formal", image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=900&q=80" },
+  { title: "Weekend Ease", description: "Easy denim, neutral tops, and fresh sneakers for versatile city plans.", audience: "women", style: "casual", image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80" },
+  { title: "Soft Minimalism", description: "Cream tones, clean lines, and elevated essentials for understated luxury.", audience: "women", style: "minimal", image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80" },
+  { title: "Trending Campus Fit", description: "Cropped layers, wide-leg denim, and playful sneakers with Gen Z energy.", audience: "women", style: "genz", image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80" },
+  { title: "Power Dressing", description: "Tailored blazers and sleek heels for a work look that still feels current.", audience: "women", style: "formal", image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80" },
+  { title: "Playground Cool", description: "Comfy layers, soft textures, and colorful sneakers designed for movement.", audience: "kids", style: "casual", image: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=900&q=80" },
+  { title: "Mini Streetwear", description: "Oversized hoodies, joggers, and bold trainers for trend-led kids styling.", audience: "kids", style: "genz", image: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=900&q=80" },
+  { title: "Clean Occasion Wear", description: "Neat shirts, tailored bottoms, and polished shoes for family events.", audience: "kids", style: "formal", image: "https://images.unsplash.com/photo-1519340241574-2cec6aef0c01?auto=format&fit=crop&w=900&q=80" },
+  { title: "Soft Minimal Basics", description: "Muted colors and simple silhouettes that feel tidy but playful.", audience: "kids", style: "minimal", image: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=900&q=80" },
 ];
 
-renderSuggestedGrid(placeholderProducts);
+const pinterestDescriptors = {
+  men: ["layered neutrals", "smart casual", "streetwear sneakers"],
+  women: ["denim chic", "minimal elegance", "trend-led styling"],
+  kids: ["playful layers", "mini streetwear", "smart family looks"],
+};
 
-photoInput?.addEventListener("change", handleImagePreview);
-form?.addEventListener("submit", handleSubmit);
+initialize();
+
+function initialize() {
+  renderExploreGrid();
+  renderResultSet(buildDefaultResultSet());
+  bindSectionNavigation();
+  bindFilters();
+  bindFormSync();
+  bindResultControls();
+
+  photoInput?.addEventListener("change", handleImagePreview);
+  form?.addEventListener("submit", handleSubmit);
+}
+
+function bindSectionNavigation() {
+  document.querySelectorAll("[data-section-target]").forEach((button) => {
+    button.addEventListener("click", () => setActiveSection(button.dataset.sectionTarget));
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const id = link.getAttribute("href")?.slice(1);
+      const target = id ? document.getElementById(id) : null;
+      if (!target) {
+        return;
+      }
+
+      event.preventDefault();
+      setActiveSection(id);
+    });
+  });
+}
+
+function bindFilters() {
+  document.querySelectorAll("[data-filter-group]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const { filterGroup, filterValue } = button.dataset;
+      if (!filterGroup || !filterValue) {
+        return;
+      }
+
+      uiState[filterGroup] = filterValue;
+      updateFilterButtons(filterGroup, filterValue);
+
+      if (filterGroup === "audience" && audienceSelect) {
+        audienceSelect.value = filterValue;
+      }
+
+      if (filterGroup === "style" && styleSelect && filterValue !== "all") {
+        styleSelect.value = filterValue;
+      }
+
+      renderExploreGrid();
+      renderResultSet(deriveFilteredResultSet());
+      loadPinterestImages(buildPinterestQueryFromState(uiState.style === "all" ? "casual" : uiState.style, uiState.audience));
+    });
+  });
+}
+
+function bindFormSync() {
+  audienceSelect?.addEventListener("change", () => {
+    uiState.audience = audienceSelect.value;
+    updateFilterButtons("audience", uiState.audience);
+    renderExploreGrid();
+    renderResultSet(deriveFilteredResultSet());
+    loadPinterestImages(buildPinterestQueryFromState(uiState.style === "all" ? "casual" : uiState.style, uiState.audience));
+  });
+
+  styleSelect?.addEventListener("change", () => {
+    uiState.style = styleSelect.value;
+    updateFilterButtons("style", uiState.style);
+    renderExploreGrid();
+    renderResultSet(deriveFilteredResultSet());
+    loadPinterestImages(buildPinterestQueryFromState(uiState.style === "all" ? "casual" : uiState.style, uiState.audience));
+  });
+}
+
+function bindResultControls() {
+  previousOutfitButton?.addEventListener("click", () => shiftOutfit(-1));
+  nextOutfitButton?.addEventListener("click", () => shiftOutfit(1));
+  rethinkOutfitButton?.addEventListener("click", handleRethinkOutfit);
+}
 
 function handleImagePreview(event) {
   const [file] = event.target.files || [];
@@ -75,21 +165,15 @@ function handleImagePreview(event) {
 
 async function handleSubmit(event) {
   event.preventDefault();
-
   const formData = new FormData(form);
-  setLoadingState(true);
-  setStatus("Generating outfit recommendations...", "success");
 
-  console.log("Submitting outfit request to:", API_URL);
-  console.log("Form fields:", {
-    date: formData.get("date"),
-    location: formData.get("location"),
-    withWhom: formData.get("withWhom"),
-    purpose: formData.get("purpose"),
-    style: formData.get("style"),
-    notes: formData.get("notes"),
-    photoAttached: Boolean(formData.get("photo") && formData.get("photo").name),
-  });
+  uiState.audience = String(formData.get("audience") || uiState.audience);
+  uiState.style = String(formData.get("style") || uiState.style);
+  uiState.formPayload = new FormData(formData);
+
+  setLoadingState(true);
+  setStatus("Creating your AI styling board...", "success");
+  setActiveSection("results");
 
   try {
     const response = await fetch(API_URL, {
@@ -97,124 +181,431 @@ async function handleSubmit(event) {
       body: formData,
     });
 
-    console.log("Response status:", response.status, response.statusText);
-
     const json = await response.json();
-    console.log("Response JSON:", json);
-
     if (!response.ok) {
       throw new Error(json.error || `Server error (${response.status})`);
     }
 
-    const generatedProducts = buildProductsFromResponse(json);
-    renderSuggestedGrid(generatedProducts);
-    setStatus("Recommendations updated.", "success");
+    uiState.resultSet = normalizeResultSet(json, formData);
+    uiState.activeOutfitIndex = 0;
+    renderResultSet(deriveFilteredResultSet());
+    loadPinterestImages(uiState.resultSet.pinterestQuery);
+    setStatus("Outfit options generated successfully.", "success");
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    console.error("Failed to fetch /api/suggest:", error);
-    renderSuggestedGrid(
-      placeholderProducts,
-      "We could not update the AI outfit grid right now, so the editorial placeholders are still shown."
-    );
+    uiState.resultSet = buildDefaultResultSet();
+    uiState.activeOutfitIndex = 0;
+    renderResultSet(deriveFilteredResultSet());
+    loadPinterestImages(uiState.resultSet.pinterestQuery);
     setStatus(error.message || "Something went wrong while contacting the server.", "error");
   } finally {
     setLoadingState(false);
   }
 }
 
-function buildProductsFromResponse(data) {
-  const products = [
-    createDetailProduct("Top", pickValue(data.top, data.shirt, data.upperwear), data.style, data),
-    createDetailProduct("Bottom", pickValue(data.bottom, data.pants, data.trousers), data.style, data),
-    createDetailProduct("Shoes", pickValue(data.footwear, data.shoes), data.style, data),
-    createDetailProduct("Accessories", pickValue(data.accessories, data.accessory, data.notes, data.tip), data.style, data),
-  ].filter(Boolean);
+async function handleRethinkOutfit() {
+  const activeSet = deriveFilteredResultSet();
+  if (uiState.formPayload) {
+    const outfits = activeSet.outfits || [];
+    if (uiState.activeOutfitIndex < outfits.length - 1) {
+      shiftOutfit(1);
+      return;
+    }
 
-  if (!products.length) {
-    products.push({
-      itemType: "AI Outfit",
-      image: getPlaceholderImage("AI Outfit"),
-      name: deriveStylishName(
-        pickValue(data.summary, data.title, data.recommendation, `${formatLabel(data.purpose || "Occasion")} Outfit`)
-      ),
-      style: pickValue(data.style, data.occasion, "AI Edit"),
-      description: pickValue(
-        data.description,
-        data.outfit,
-        "A personalized recommendation tailored to your styling brief."
-      ),
-      tags: [pickValue(data.purpose, data.occasion), data.style, pickValue(data.location)].filter(Boolean),
-    });
+    setLoadingState(true);
+    setStatus("Generating another outfit set...", "success");
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: new FormData(uiState.formPayload),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || `Server error (${response.status})`);
+      }
+
+      uiState.resultSet = normalizeResultSet(json, uiState.formPayload);
+      uiState.activeOutfitIndex = 0;
+      renderResultSet(deriveFilteredResultSet());
+      loadPinterestImages(uiState.resultSet.pinterestQuery);
+      setStatus("Fresh outfit options are ready.", "success");
+    } catch (error) {
+      shiftOutfit(1);
+      setStatus(error.message || "Unable to fetch a new outfit set right now.", "error");
+    } finally {
+      setLoadingState(false);
+    }
+    return;
   }
 
-  while (products.length < 4) {
-    products.push(placeholderProducts[products.length]);
-  }
-
-  return products.slice(0, 4);
+  shiftOutfit(1);
 }
 
-function createDetailProduct(itemType, rawValue, style, data) {
-  if (!rawValue) {
-    return null;
+function shiftOutfit(direction) {
+  const activeSet = deriveFilteredResultSet();
+  if (!activeSet.outfits.length) {
+    return;
   }
 
+  const size = activeSet.outfits.length;
+  uiState.activeOutfitIndex = (uiState.activeOutfitIndex + direction + size) % size;
+  renderResultSet(activeSet);
+}
+
+function setActiveSection(sectionId) {
+  uiState.section = sectionId;
+
+  document.querySelectorAll("[data-section-target]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.sectionTarget === sectionId);
+  });
+
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderExploreGrid() {
+  const audience = uiState.audience || "men";
+  const style = uiState.style || "all";
+
+  const visibleCards = exploreCards.filter((card) => {
+    const audienceMatch = card.audience === audience;
+    const styleMatch = style === "all" || card.style === style;
+    return audienceMatch && styleMatch;
+  });
+
+  const cardsToRender = visibleCards.length >= 3 ? visibleCards : exploreCards.filter((card) => card.audience === audience).slice(0, 5);
+
+  activeFilterTitle.textContent = `${capitalize(audience)} / ${style === "all" ? "All Looks" : formatLabel(style)}`;
+  activeFilterDescription.textContent = buildFilterDescription(audience, style);
+  exploreGrid.innerHTML = cardsToRender.map(createExploreCardMarkup).join("");
+}
+
+function renderResultSet(resultSet) {
+  const safeSet = ensureResultSet(resultSet);
+  const activeOutfit = safeSet.outfits[uiState.activeOutfitIndex] || safeSet.outfits[0];
+
+  outfitHeading.textContent = activeOutfit;
+  resultStyle.textContent = `Style: ${formatLabel(safeSet.style)}`;
+  activeAudienceChip.textContent = `Audience: ${formatLabel(safeSet.audience)}`;
+  resultSource.textContent = getSourceLabel(safeSet.source);
+
+  itemsList.innerHTML = safeSet.items.slice(0, 5).map((item) => {
+    const key = buildItemKey(item);
+    const link = safeSet.amazonLinks[key] || buildAmazonLink(item, safeSet.audience);
+
+    return `
+      <article class="item-card">
+        <div>
+          <p class="item-card-kicker">Detected piece</p>
+          <h4 class="item-card-title">${escapeHtml(item)}</h4>
+        </div>
+        <a href="${escapeHtml(link)}" target="_blank" rel="noreferrer" class="shop-link">Buy Now</a>
+      </article>
+    `;
+  }).join("");
+
+  outfitCards.innerHTML = safeSet.outfits.map((outfit, index) => `
+    <button type="button" class="outfit-option-card ${index === uiState.activeOutfitIndex ? "is-active" : ""}" data-outfit-index="${index}">
+      <p class="outfit-option-kicker">Option ${index + 1}</p>
+      <h4 class="outfit-option-title">${escapeHtml(outfit)}</h4>
+    </button>
+  `).join("");
+
+  outfitCards.querySelectorAll("[data-outfit-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      uiState.activeOutfitIndex = Number(button.dataset.outfitIndex) || 0;
+      renderResultSet(safeSet);
+    });
+  });
+
+  previousOutfitButton.disabled = safeSet.outfits.length <= 1;
+  nextOutfitButton.disabled = safeSet.outfits.length <= 1;
+
+  const pinterestQuery = safeSet.pinterestQuery || buildPinterestQueryFromState(safeSet.style, safeSet.audience);
+  const pinterestUrl = buildPinterestUrl(pinterestQuery);
+  pinterestLink.href = pinterestUrl;
+  pinterestHeading.textContent = formatLabel(pinterestQuery);
+  pinterestDescription.textContent = `Pinterest inspiration now tracks ${formatLabel(safeSet.audience)} looks with ${formatLabel(safeSet.style).toLowerCase()} styling references.`;
+  loadPinterestImages(pinterestQuery);
+}
+
+function loadPinterestImages(query) {
+  if (!pinterestContainer) {
+    return;
+  }
+
+  const normalizedQuery = String(query || buildPinterestQueryFromState("casual", uiState.audience))
+    .replace(/\s+/g, " ")
+    .trim();
+  const descriptors = pinterestDescriptors[uiState.audience] || pinterestDescriptors.men;
+  const pinterestUrl = buildPinterestUrl(normalizedQuery);
+
+  pinterestContainer.innerHTML = "";
+
+  for (let index = 0; index < 4; index += 1) {
+    const descriptor = descriptors[index % descriptors.length];
+    const imageQuery = `${normalizedQuery} ${descriptor}`;
+
+    const card = document.createElement("div");
+    card.className = "pinterest-card";
+    card.tabIndex = 0;
+
+    const img = document.createElement("img");
+    img.src = `https://source.unsplash.com/400x500/?${encodeURIComponent(imageQuery)},fashion&sig=${index + Date.now()}`;
+    img.alt = imageQuery;
+    img.className = "pinterest-card-image";
+    img.loading = "lazy";
+    img.onerror = () => {
+      img.onerror = null;
+      img.src = "https://via.placeholder.com/400x500?text=Style+Inspiration";
+    };
+
+    const content = document.createElement("div");
+    content.className = "pinterest-card-body";
+
+    const title = document.createElement("h3");
+    title.className = "pinterest-card-title";
+    title.innerText = `Style Idea ${index + 1}`;
+
+    const subtitle = document.createElement("p");
+    subtitle.className = "pinterest-card-subtitle";
+    subtitle.innerText = formatLabel(imageQuery);
+
+    content.appendChild(title);
+    content.appendChild(subtitle);
+
+    card.appendChild(img);
+    card.appendChild(content);
+
+    card.onclick = () => {
+      window.open(pinterestUrl, "_blank", "noopener,noreferrer");
+    };
+
+    card.onkeydown = (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.open(pinterestUrl, "_blank", "noopener,noreferrer");
+      }
+    };
+
+    pinterestContainer.appendChild(card);
+  }
+}
+
+function normalizeResultSet(data, formData) {
+  const audience = String(data.audience || formData.get("audience") || uiState.audience || "men").toLowerCase();
+  const style = String(data.style || formData.get("style") || "casual").toLowerCase();
+  const items = sanitizeStringArray(data.items);
+  const outfits = sanitizeStringArray(data.outfits);
+  const derivedOutfits = outfits.length ? outfits : buildDefaultOutfits(style, audience);
+  const derivedItems = items.length ? items : buildDefaultItems(style, audience);
+
   return {
-    itemType,
-    image: getPlaceholderImage(itemType),
-    name: deriveStylishName(rawValue),
-    style: pickValue(style, "Styled"),
-    description: formatLabel(rawValue),
-    tags: [pickValue(data.purpose, data.occasion), style, "AI Pick"].filter(Boolean),
+    audience,
+    style,
+    items: ensureMinimumItems(derivedItems, style, audience),
+    outfits: ensureMinimumOutfits(derivedOutfits, style, audience),
+    amazonLinks: normalizeAmazonLinks(data.amazonLinks, derivedItems, audience),
+    pinterestQuery: String(data.pinterestQuery || buildPinterestQueryFromState(style, audience)),
+    source: String(data.source || "ai-image"),
   };
 }
 
-function renderSuggestedGrid(products, helperText = "") {
-  suggestedGrid.innerHTML = products.map(createProductCardMarkup).join("");
-
-  if (helperText) {
-    const note = document.createElement("p");
-    note.className = "col-span-full mt-2 text-sm text-black/55";
-    note.textContent = helperText;
-    suggestedGrid.append(note);
-  }
+function deriveFilteredResultSet() {
+  return ensureResultSet({
+    ...(uiState.resultSet || buildDefaultResultSet()),
+    audience: uiState.audience || "men",
+    style: uiState.style === "all" ? (uiState.resultSet?.style || "casual") : uiState.style,
+  });
 }
 
-function createProductCardMarkup(product) {
-  const tags = (product.tags || []).filter(Boolean).slice(0, 3);
+function ensureResultSet(resultSet) {
+  const base = resultSet || buildDefaultResultSet();
+  const audience = String(base.audience || uiState.audience || "men").toLowerCase();
+  const style = String(base.style || "casual").toLowerCase();
+  const items = ensureMinimumItems(sanitizeStringArray(base.items), style, audience);
+  const outfits = ensureMinimumOutfits(sanitizeStringArray(base.outfits), style, audience);
 
+  if (uiState.activeOutfitIndex >= outfits.length) {
+    uiState.activeOutfitIndex = 0;
+  }
+
+  return {
+    ...base,
+    audience,
+    style,
+    items,
+    outfits,
+    amazonLinks: normalizeAmazonLinks(base.amazonLinks, items, audience),
+    pinterestQuery: String(base.pinterestQuery || buildPinterestQueryFromState(style, audience)),
+  };
+}
+
+function buildDefaultResultSet() {
+  const audience = uiState.audience || "men";
+  const style = uiState.style === "all" ? "casual" : uiState.style;
+  return {
+    audience,
+    style,
+    items: buildDefaultItems(style, audience),
+    outfits: buildDefaultOutfits(style, audience),
+    amazonLinks: normalizeAmazonLinks({}, buildDefaultItems(style, audience), audience),
+    pinterestQuery: buildPinterestQueryFromState(style, audience),
+    source: "form-fallback",
+  };
+}
+
+function buildDefaultItems(style, audience) {
+  const catalog = {
+    men: {
+      casual: ["white shirt", "blue jeans", "clean sneakers", "lightweight overshirt", "minimal watch"],
+      formal: ["oxford shirt", "tailored trousers", "derby shoes", "navy blazer", "leather belt"],
+      genz: ["boxy tee", "cargo pants", "retro sneakers", "crossbody bag", "silver chain"],
+      minimal: ["fine knit tee", "straight trousers", "leather sneakers", "overshirt", "clean watch"],
+      athleisure: ["performance tee", "track pants", "running shoes", "zip jacket", "sport watch"],
+    },
+    women: {
+      casual: ["neutral top", "blue jeans", "white sneakers", "cropped cardigan", "sleek tote"],
+      formal: ["tailored blazer", "straight trousers", "pointed heels", "silk shell top", "structured tote"],
+      genz: ["cropped graphic tee", "wide-leg jeans", "platform sneakers", "mini shoulder bag", "layered rings"],
+      minimal: ["ribbed knit top", "cream trousers", "loafers", "soft blazer", "gold hoops"],
+      athleisure: ["performance tee", "leggings", "running shoes", "light jacket", "sport tote"],
+    },
+    kids: {
+      casual: ["graphic sweatshirt", "soft denim", "play sneakers", "light cap", "mini backpack"],
+      formal: ["neat shirt", "tailored chinos", "polished sneakers", "soft cardigan", "dress watch"],
+      genz: ["hoodie", "joggers", "chunky trainers", "crossbody pouch", "beanie"],
+      minimal: ["solid tee", "easy trousers", "slip-on shoes", "overshirt", "small backpack"],
+      athleisure: ["sport tee", "track pants", "running shoes", "zip hoodie", "duffle bag"],
+    },
+  };
+
+  return catalog[audience]?.[style] || catalog[audience]?.casual || catalog.men.casual;
+}
+
+function buildDefaultOutfits(style, audience) {
+  const lookbook = {
+    men: {
+      casual: ["white shirt + blue jeans + sneakers", "black t-shirt + cargo pants + sneakers", "hoodie + joggers + trainers"],
+      formal: ["oxford shirt + tailored trousers + derby shoes", "fine knit polo + pleated pants + loafers", "navy blazer + chinos + leather sneakers"],
+      genz: ["boxy tee + baggy jeans + chunky sneakers", "graphic hoodie + cargo pants + retro trainers", "layered tee + relaxed denim + skate shoes"],
+      minimal: ["fine knit tee + straight trousers + leather sneakers", "overshirt + tapered denim + loafers", "cream shirt + black trousers + court sneakers"],
+      athleisure: ["performance jacket + track pants + running shoes", "dry-fit tee + joggers + knit trainers", "zip hoodie + tech pants + lifestyle sneakers"],
+    },
+    women: {
+      casual: ["neutral top + blue jeans + white sneakers", "cropped cardigan + midi skirt + sleek flats", "ribbed tank + relaxed denim + loafers"],
+      formal: ["tailored blazer + straight trousers + pointed heels", "silk blouse + tapered pants + slingback pumps", "belted co-ord set + loafers + structured tote"],
+      genz: ["cropped graphic tee + wide-leg jeans + platform sneakers", "baby tee + parachute pants + chunky sneakers", "oversized shirt + mini skirt + high-top sneakers"],
+      minimal: ["ribbed knit top + cream trousers + loafers", "soft blazer + knit dress + ankle boots", "monochrome co-ord + sleek sneakers + tote"],
+      athleisure: ["performance tee + leggings + trainers", "zip jacket + flare pants + sneakers", "sport bra + cargo joggers + running shoes"],
+    },
+    kids: {
+      casual: ["graphic sweatshirt + soft denim + play sneakers", "striped tee + cargo shorts + sporty sandals", "hoodie + joggers + colorful trainers"],
+      formal: ["neat shirt + chinos + polished sneakers", "soft cardigan + trousers + loafers", "mini blazer + denim + slip-ons"],
+      genz: ["oversized hoodie + joggers + chunky trainers", "graphic tee + cargo pants + bright sneakers", "check shirt + relaxed jeans + skate shoes"],
+      minimal: ["solid tee + easy trousers + slip-on shoes", "soft knit + denim + clean sneakers", "overshirt + joggers + low-top trainers"],
+      athleisure: ["sport tee + track pants + running shoes", "zip hoodie + shorts + trainers", "performance top + joggers + sporty sandals"],
+    },
+  };
+
+  return lookbook[audience]?.[style] || lookbook[audience]?.casual || lookbook.men.casual;
+}
+
+function ensureMinimumItems(items, style, audience) {
+  const merged = [...new Set([...items, ...buildDefaultItems(style, audience)])];
+  return merged.slice(0, 5);
+}
+
+function ensureMinimumOutfits(outfits, style, audience) {
+  const merged = [...new Set([...outfits, ...buildDefaultOutfits(style, audience)])];
+  return merged.slice(0, 5);
+}
+
+function normalizeAmazonLinks(links, items, audience) {
+  const normalized = {};
+  items.forEach((item) => {
+    const key = buildItemKey(item);
+    normalized[key] = links?.[key] || buildAmazonLink(item, audience);
+  });
+  return normalized;
+}
+
+function sanitizeStringArray(value) {
+  return Array.isArray(value)
+    ? value.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+}
+
+function updateFilterButtons(group, value) {
+  document.querySelectorAll(`[data-filter-group="${group}"]`).forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.filterValue === value);
+  });
+}
+
+function createExploreCardMarkup(card) {
   return `
-    <article class="product-card">
-      <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" class="product-image" />
+    <article class="product-card" data-category="${escapeHtml(card.audience)}" data-style="${escapeHtml(card.style)}">
+      <img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}" class="product-image" />
       <div class="product-body">
         <div class="product-header">
-          <p class="product-kicker">${escapeHtml(formatLabel(product.itemType || "AI Look"))}</p>
-          <span class="product-pill">${escapeHtml(formatLabel(product.style || "AI Look"))}</span>
+          <p class="product-kicker">${escapeHtml(capitalize(card.audience))}</p>
+          <span class="product-pill">${escapeHtml(formatLabel(card.style))}</span>
         </div>
-        <h3 class="product-title">${escapeHtml(formatLabel(product.name))}</h3>
-        <p class="product-copy">${escapeHtml(formatLabel(product.description || ""))}</p>
-        <div class="product-meta">
-          ${tags.map((tag) => `<span>${escapeHtml(formatLabel(tag))}</span>`).join("")}
-        </div>
+        <h3 class="product-title">${escapeHtml(card.title)}</h3>
+        <p class="product-copy">${escapeHtml(card.description)}</p>
       </div>
     </article>
   `;
 }
 
+function getSourceLabel(source) {
+  const labels = {
+    "ai-image": "Image analyzed with AI vision for outfit-specific suggestions.",
+    "fallback-after-image": "Image upload was received, but a safe fallback outfit set was generated from your inputs.",
+    "form-fallback": "No image was required. This outfit set was generated from your selected style, purpose, and audience.",
+  };
+  return labels[source] || labels["form-fallback"];
+}
+
+function buildFilterDescription(audience, style) {
+  if (style === "all") {
+    return `A full set of ${audience} styling references across casual, minimal, formal, and trend-led looks.`;
+  }
+  return `${capitalize(audience)} looks focused on ${formatLabel(style).toLowerCase()} styling with multiple outfit options.`;
+}
+
+function buildPinterestUrl(query) {
+  return `https://in.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`;
+}
+
+function buildPinterestQueryFromState(style, audience) {
+  return `${style} ${audience} outfit`.replace(/\s+/g, " ").trim();
+}
+
+function buildAmazonLink(item, audience) {
+  return `https://www.amazon.in/s?k=${encodeURIComponent(`${item} ${audience}`)}`;
+}
+
+function buildItemKey(item) {
+  const words = String(item).toLowerCase().trim().split(/\s+/);
+  return words[words.length - 1]?.replace(/[^a-z]/g, "") || "item";
+}
+
 function setLoadingState(isLoading) {
   submitButton.disabled = isLoading;
+  if (rethinkOutfitButton) {
+    rethinkOutfitButton.disabled = isLoading;
+  }
   loadingSpinner.classList.toggle("hidden", !isLoading);
-  buttonLabel.textContent = isLoading ? "Styling..." : "Get Outfit";
+  buttonLabel.textContent = isLoading ? "Styling..." : "Get Outfit 🔥";
 }
 
 function setStatus(message, state) {
   formStatus.textContent = message;
   formStatus.classList.remove("status-success", "status-error");
-
   if (state === "success") {
     formStatus.classList.add("status-success");
   }
-
   if (state === "error") {
     formStatus.classList.add("status-error");
   }
@@ -224,48 +615,21 @@ function formatFileSize(size) {
   if (!Number.isFinite(size) || size <= 0) {
     return "0 KB";
   }
-
   if (size >= 1024 * 1024) {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
-
   return `${Math.max(1, Math.round(size / 1024))} KB`;
 }
 
-function pickValue(...values) {
-  return values.find((value) => typeof value === "string" && value.trim()) || "";
-}
-
 function formatLabel(value) {
-  return String(value).replace(/[_-]+/g, " ").trim();
-}
-
-function deriveStylishName(rawValue) {
-  const cleaned = formatLabel(rawValue)
-    .replace(/\b(top|bottom|shoes|accessories|pairing|finish|recommendation)\b/gi, "")
-    .replace(/\s+/g, " ")
+  return String(value)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase())
     .trim();
-
-  if (!cleaned) {
-    return "Curated Fashion Pick";
-  }
-
-  return cleaned
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
-function getPlaceholderImage(itemType) {
-  const imageMap = {
-    Top: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80",
-    Bottom: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80",
-    Shoes: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-    Accessories: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=900&q=80",
-    "AI Outfit": "https://images.unsplash.com/photo-1506629905607-fcf205f90bba?auto=format&fit=crop&w=900&q=80",
-  };
-
-  return imageMap[itemType] || imageMap["AI Outfit"];
+function capitalize(value) {
+  return String(value).charAt(0).toUpperCase() + String(value).slice(1);
 }
 
 function escapeHtml(value) {
