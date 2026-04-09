@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fashion Sensor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script>
+    window.tailwind = {
+      config: {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Instrument Sans", "sans-serif"],
+              display: ["Cormorant Garamond", "serif"],
+            },
+            colors: {
+              ink: "#111111",
+              stone: "#f3f0ea",
+              sand: "#e9e1d2",
+              olive: "#5f6b58",
+            },
+            boxShadow: {
+              luxe: "0 25px 70px rgba(17, 17, 17, 0.12)",
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-[#f8f5ef] text-ink antialiased">
+  <div class="min-h-screen">
+    <header class="sticky top-0 z-50 border-b border-black/5 bg-[#f8f5ef]/90 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <a href="#home" class="text-lg font-semibold tracking-[0.18em] text-ink uppercase">Fashion Sensor</a>
+
+        <nav class="hidden items-center gap-8 text-sm font-medium text-black/70 md:flex">
+          <a href="#home" class="transition hover:text-black">Home</a>
+          <a href="#explore" class="transition hover:text-black">Explore</a>
+          <a href="#ai-outfit" class="transition hover:text-black">AI Outfit</a>
+          <a href="#wardrobe" class="transition hover:text-black">Wardrobe</a>
+          <a href="#contact" class="transition hover:text-black">Contact</a>
+        </nav>
+
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white/70 text-black transition hover:-translate-y-0.5 hover:shadow-lg"
+            aria-label="Search"
+          >
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-3.5-3.5"></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white/70 text-black transition hover:-translate-y-0.5 hover:shadow-lg"
+            aria-label="Profile"
+          >
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="8" r="3.5"></circle>
+              <path d="M5 19c1.8-3 4.2-4.5 7-4.5s5.2 1.5 7 4.5"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="home">
+      <section class="relative overflow-hidden">
+        <div class="hero-image absolute inset-0"></div>
+        <div class="hero-overlay absolute inset-0"></div>
+        <div class="relative mx-auto grid min-h-[80vh] max-w-7xl items-end px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-24">
+          <div class="max-w-2xl">
+            <p class="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">Future of fashion styling</p>
+            <h1 class="font-display text-5xl leading-none text-white sm:text-6xl lg:text-8xl">
+              AI Powered Outfit Recommendations
+            </h1>
+            <p class="mt-6 max-w-xl text-base leading-7 text-white/80 sm:text-lg">
+              Your wardrobe. Your style. Powered by AI. Discover elevated looks with a storefront-inspired experience built for everyday styling.
+            </p>
+            <div class="mt-8 flex flex-col gap-4 sm:flex-row">
+              <a
+                href="#ai-outfit"
+                class="inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-semibold text-black transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
+              >
+                Try Now
+              </a>
+              <a
+                href="#explore"
+                class="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-8 py-4 text-sm font-semibold text-white backdrop-blur transition duration-300 hover:border-white/60 hover:bg-white/20"
+              >
+                Explore Collections
+              </a>
+            </div>
+          </div>
+
+          <div class="mt-10 lg:mt-0 lg:justify-self-end">
+            <div class="rounded-[2rem] border border-white/20 bg-white/10 p-6 text-white shadow-luxe backdrop-blur-md">
+              <p class="text-xs font-semibold uppercase tracking-[0.25em] text-white/65">Editor’s Note</p>
+              <p class="mt-4 text-2xl font-medium leading-tight">A luxury retail layout, adapted for your AI outfit workflow.</p>
+              <div class="mt-6 grid grid-cols-2 gap-4 text-sm text-white/80">
+                <div class="rounded-2xl bg-white/10 p-4">
+                  <p class="text-xs uppercase tracking-[0.2em] text-white/55">Looks</p>
+                  <p class="mt-2 text-xl font-semibold text-white">Curated</p>
+                </div>
+                <div class="rounded-2xl bg-white/10 p-4">
+                  <p class="text-xs uppercase tracking-[0.2em] text-white/55">Style Fit</p>
+                  <p class="mt-2 text-xl font-semibold text-white">Personal</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="explore" class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div class="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Shop by focus</p>
+            <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">Categories</h2>
+          </div>
+          <p class="max-w-xl text-sm leading-6 text-black/55">
+            Browse styling modes inspired by modern fashion storefronts while keeping your AI outfit flow front and center.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="button" class="category-tab is-active">Men</button>
+          <button type="button" class="category-tab">Women</button>
+          <button type="button" class="category-tab">Shoes</button>
+          <button type="button" class="category-tab">Accessories</button>
+        </div>
+      </section>
+
+      <section id="ai-outfit" class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+          <section class="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-luxe backdrop-blur sm:p-8">
+            <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">AI outfit</p>
+                <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">Build Your Look</h2>
+              </div>
+              <p class="max-w-md text-sm leading-6 text-black/55">
+                Your existing form lives here, refreshed into a premium two-column fashion assistant card.
+              </p>
+            </div>
+
+            <form id="fashionForm" class="grid gap-5">
+
+  <div class="grid gap-5 md:grid-cols-2">
+
+    <label class="field-shell">
+      <span class="field-label">Date & Time</span>
+      <input type="datetime-local" id="date" name="date" required class="field-input" />
+    </label>
+
+    <label class="field-shell">
+      <span class="field-label">Location</span>
+      <input type="text" id="location" name="location" placeholder="e.g. Mumbai, indoor mall" class="field-input" />
+    </label>
+
+    <label class="field-shell">
+      <span class="field-label">Going with</span>
+      <input type="text" id="withWhom" name="withWhom" placeholder="e.g. family, friends, date" class="field-input" />
+    </label>
+
+    <label class="field-shell">
+      <span class="field-label">Purpose</span>
+      <select id="purpose" name="purpose" class="field-input">
+        <option value="casual">Casual</option>
+        <option value="formal">Formal / Work</option>
+        <option value="party">Party / Night Out</option>
+        <option value="travel">Travel</option>
+        <option value="wedding">Wedding / Ceremony</option>
+      </select>
+    </label>
+
+    <label class="field-shell">
+      <span class="field-label">Style vibe</span>
+      <select id="style" name="style" class="field-input">
+        <option value="genz">Gen Z / Trendy</option>
+        <option value="minimal">Minimal / Clean</option>
+        <option value="formal">Formal</option>
+        <option value="athleisure">Athleisure</option>
+      </select>
+    </label>
+
+    <label class="field-shell md:col-span-2">
+      <span class="field-label">Notes</span>
+      <input
+        type="text"
+        id="notes"
+        name="notes"
+        placeholder="e.g. avoid red, prefer neutrals"
+        class="field-input"
+      />
+    </label>
+
+  </div>
+
+  <!-- STATUS + BUTTON -->
+  <div class="mt-2 flex flex-col gap-4 border-t border-black/5 pt-6">
+
+    <p id="formStatus" class="min-h-6 text-sm text-black/55" aria-live="polite"></p>
+
+    <button 
+      id="submitButton"
+      type="submit"
+      class="w-full bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition duration-300 shadow-lg flex items-center justify-center">
+      
+      <span class="button-label">Get Outfit 🔥</span>
+      
+      <span id="loadingSpinner" class="hidden ml-2">⏳</span>
+
+    </button>
+
+  </div>
+
+</form>
+            <div class="mt-6">
+ 
+          </section>
+
+          <aside id="wardrobe" class="rounded-[2rem] border border-black/5 bg-[#f1ebe0] p-6 shadow-luxe sm:p-8">
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Wardrobe upload</p>
+            <h3 class="mt-3 font-display text-4xl text-ink">Preview &amp; Tips</h3>
+            <p class="mt-4 max-w-md text-sm leading-6 text-black/60">
+              Add your wardrobe image here. We preview it instantly and use it alongside your existing inputs.
+            </p>
+
+            <label for="photo" class="upload-panel mt-8 block cursor-pointer rounded-[1.75rem] border border-dashed border-black/15 bg-white/70 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+              <input type="file" id="photo" name="photo" accept="image/*" class="sr-only" form="fashionForm" />
+              <div class="flex items-center gap-4">
+                <span class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-black text-2xl text-white">+</span>
+                <div>
+                  <p class="text-base font-semibold text-ink">Upload wardrobe photo</p>
+                  <p class="mt-1 text-sm text-black/55">PNG, JPG, or HEIC supported</p>
+                </div>
+              </div>
+            </label>
+
+            <div id="previewContainer" class="mt-6 hidden rounded-[1.75rem] bg-white p-4 shadow-lg" aria-live="polite">
+              <img id="imagePreview" alt="Selected wardrobe preview" class="h-72 w-full rounded-[1.25rem] object-cover" />
+              <div class="mt-4 flex items-start justify-between gap-4">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.24em] text-black/40">Preview ready</p>
+                  <p id="fileMeta" class="mt-2 text-sm text-black/60"></p>
+                </div>
+                <span class="rounded-full bg-[#f5f1ea] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-black/55">
+                  Live
+                </span>
+              </div>
+            </div>
+
+            <div class="mt-6 grid gap-4">
+              <article class="rounded-[1.5rem] bg-white/75 p-5 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-black/40">Tip 01</p>
+                <p class="mt-3 text-sm leading-6 text-black/65">Use clear wardrobe photos so colors, fabrics, and layering options are easier to infer.</p>
+              </article>
+              <article class="rounded-[1.5rem] bg-white/75 p-5 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-black/40">Tip 02</p>
+                <p class="mt-3 text-sm leading-6 text-black/65">Add notes for preferred tones or items to avoid to get more refined outfit suggestions.</p>
+              </article>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="results" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-black/45">Suggested outfits</p>
+            <h2 class="mt-3 font-display text-4xl text-ink sm:text-5xl">Curated Grid</h2>
+          </div>
+          <p class="max-w-xl text-sm leading-6 text-black/55">
+            The AI recommendation appears here in a product-style layout with editorial cards and polished hover states.
+          </p>
+        </div>
+
+        <div id="suggestedGrid" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4"></div>
+      </section>
+
+      <section class="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div class="grid gap-6 lg:grid-cols-3">
+          <article class="promo-card promo-card-minimal">
+            <p class="promo-kicker">Featured Edit</p>
+            <h3>Minimal Style Collection</h3>
+            <p>Clean silhouettes, neutral layering, and elevated basics for a quiet luxury feel.</p>
+          </article>
+          <article class="promo-card promo-card-street">
+            <p class="promo-kicker">Trending Now</p>
+            <h3>Streetwear Picks</h3>
+            <p>Relaxed tailoring, statement sneakers, and modern proportions for sharper daily looks.</p>
+          </article>
+          <article class="promo-card promo-card-evening">
+            <p class="promo-kicker">Night Edit</p>
+            <h3>After Dark Dressing</h3>
+            <p>Structured layers and rich textures designed for dressier evenings and special plans.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer id="contact" class="border-t border-black/5 bg-white/60">
+      <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
+        <div>
+          <p class="text-lg font-semibold uppercase tracking-[0.18em] text-ink">Fashion Sensor</p>
+          <p class="mt-3 max-w-xs text-sm leading-6 text-black/55">
+            A fashion storefront-inspired AI assistant for styling smarter with your own wardrobe.
+          </p>
+        </div>
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">Navigate</p>
+          <div class="mt-4 grid gap-2 text-sm text-black/60">
+            <a href="#home" class="transition hover:text-black">Home</a>
+            <a href="#explore" class="transition hover:text-black">Explore</a>
+            <a href="#ai-outfit" class="transition hover:text-black">AI Outfit</a>
+          </div>
+        </div>
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">Collections</p>
+          <div class="mt-4 grid gap-2 text-sm text-black/60">
+            <a href="#results" class="transition hover:text-black">Suggested Outfits</a>
+            <a href="#wardrobe" class="transition hover:text-black">Wardrobe Upload</a>
+            <a href="#contact" class="transition hover:text-black">Support</a>
+          </div>
+        </div>
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">Stay in touch</p>
+          <p class="mt-4 text-sm leading-6 text-black/60">Designed for modern styling workflows with a premium storefront feel.</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
