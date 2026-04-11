@@ -2,6 +2,7 @@ package com.fashionsensor.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fashionsensor.backend.model.SuggestionItem;
 import com.fashionsensor.backend.model.SuggestionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,17 +32,20 @@ public class OutfitSuggestionService {
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final UnsplashProxyService unsplashProxyService;
     private final String openAiApiKey;
     private final String openAiModel;
 
     public OutfitSuggestionService(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
+            UnsplashProxyService unsplashProxyService,
             @Value("${openai.api.key:}") String openAiApiKey,
             @Value("${openai.model:gpt-4o-mini}") String openAiModel
     ) {
         this.webClient = webClientBuilder.baseUrl(OPENAI_API_URL).build();
         this.objectMapper = objectMapper;
+        this.unsplashProxyService = unsplashProxyService;
         this.openAiApiKey = openAiApiKey;
         this.openAiModel = openAiModel;
     }
@@ -112,11 +116,13 @@ public class OutfitSuggestionService {
         }
         String outfit = defaultIfBlank(parsed.path("outfit").asText(""), outfits.get(0));
         String pinterestQuery = buildPinterestQuery(defaultIfBlank(resolvedStyle, style), audience);
+        List<SuggestionItem> itemCards = buildItemCards(items, audience, resolvedStyle);
 
         return new SuggestionResponse(
                 outfit,
                 outfits,
                 items,
+                itemCards,
                 defaultIfBlank(resolvedStyle, "casual"),
                 buildAmazonLinks(items, audience),
                 pinterestQuery,
@@ -194,11 +200,13 @@ public class OutfitSuggestionService {
         List<String> items = buildFallbackItems(style, purpose, audience, location);
         List<String> outfits = buildFallbackOutfits(style, purpose, audience, location);
         String outfit = outfits.get(0);
+        List<SuggestionItem> itemCards = buildItemCards(items, audience, style);
 
         return new SuggestionResponse(
                 outfit,
                 outfits,
                 items,
+                itemCards,
                 style,
                 buildAmazonLinks(items, audience),
                 buildPinterestQuery(style, audience),
@@ -385,6 +393,10 @@ public class OutfitSuggestionService {
         return (defaultIfBlank(style, "casual") + " " + defaultIfBlank(audience, "fashion") + " outfit")
                 .replaceAll("\\s+", " ")
                 .trim();
+    }
+
+    private List<SuggestionItem> buildItemCards(List<String> items, String audience, String style) {
+        return unsplashProxyService.search(audience, defaultIfBlank(style, "casual"), items);
     }
 
     private String buildItemKey(String item) {

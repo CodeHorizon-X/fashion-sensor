@@ -7,6 +7,7 @@ public record SuggestionResponse(
         String outfit,
         List<String> outfits,
         List<String> items,
+        List<SuggestionItem> itemCards,
         String style,
         Map<String, String> amazonLinks,
         String pinterestQuery,

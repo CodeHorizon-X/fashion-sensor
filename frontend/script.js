@@ -27,6 +27,7 @@ const nextOutfitButton = document.getElementById("nextOutfitButton");
 const rethinkOutfitButton = document.getElementById("rethinkOutfitButton");
 
 const API_URL = "http://localhost:8080/api/suggest";
+const SUGGESTIONS_URL = "http://localhost:8080/api/suggestions";
 let previewUrl = null;
 
 const uiState = {
@@ -36,6 +37,7 @@ const uiState = {
   resultSet: null,
   activeOutfitIndex: 0,
   formPayload: null,
+  refreshRequestId: 0,
 };
 
 const exploreCards = [
@@ -62,7 +64,7 @@ const pinterestDescriptors = {
 initialize();
 
 function initialize() {
-  renderExploreGrid();
+  void fetchExploreData(uiState.audience, uiState.style === "all" ? "casual" : uiState.style);
   renderResultSet(buildDefaultResultSet());
   bindSectionNavigation();
   bindFilters();
@@ -111,28 +113,87 @@ function bindFilters() {
         styleSelect.value = filterValue;
       }
 
-      renderExploreGrid();
+      // Immediately refresh exploreGrid with live Unsplash images from the backend
+      const audience = uiState.audience || "men";
+      const style = uiState.style === "all" ? "casual" : uiState.style;
+      void fetchExploreData(audience, style);
+
       renderResultSet(deriveFilteredResultSet());
-      loadPinterestImages(buildPinterestQueryFromState(uiState.style === "all" ? "casual" : uiState.style, uiState.audience));
+      loadPinterestImages(buildPinterestQueryFromState(style, audience));
+      void refreshResultsForCurrentFilters();
     });
   });
+}
+
+/**
+ * Fetches live Unsplash images from GET /api/suggestions?audience=&style=
+ * and re-renders the exploreGrid. Falls back to the local static data on error.
+ */
+async function fetchExploreData(audience, style) {
+  // Update the label immediately so the UI feels responsive
+  activeFilterTitle.textContent = `${capitalize(audience)} / ${style === "all" ? "All Looks" : formatLabel(style)}`;
+  activeFilterDescription.textContent = buildFilterDescription(audience, style);
+
+  try {
+    const url = `${SUGGESTIONS_URL}?audience=${encodeURIComponent(audience)}&style=${encodeURIComponent(style)}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Server error ${response.status}`);
+    }
+    const data = await response.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+
+    if (items.length === 0) {
+      // Backend returned nothing useful — fall through to static fallback
+      renderExploreGrid();
+      return;
+    }
+
+    // Render live Unsplash cards; each Pinterest link points to a search for item.title
+    exploreGrid.innerHTML = items.map((item) => {
+      const title  = escapeHtml(item.title  || "Fashion Look");
+      const imgSrc = escapeHtml(item.imageUrl || "");
+      const pinUrl = escapeHtml(buildPinterestUrl(item.title || `${audience} ${style} fashion outfit`));
+      return `
+        <a href="${pinUrl}" target="_blank" rel="noreferrer" class="product-card block no-underline" aria-label="View ${title} on Pinterest">
+          <img src="${imgSrc}" alt="${title}" class="product-image" loading="lazy"
+               onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=900&q=80'" />
+          <div class="product-body">
+            <div class="product-header">
+              <p class="product-kicker">${escapeHtml(capitalize(audience))}</p>
+              <span class="product-pill">${escapeHtml(formatLabel(style))}</span>
+            </div>
+            <h3 class="product-title">${title}</h3>
+            <p class="product-copy">Click to explore on Pinterest →</p>
+          </div>
+        </a>
+      `;
+    }).join("");
+  } catch (error) {
+    console.warn("fetchExploreData failed, using static fallback.", error);
+    renderExploreGrid(); // static fallback
+  }
 }
 
 function bindFormSync() {
   audienceSelect?.addEventListener("change", () => {
     uiState.audience = audienceSelect.value;
     updateFilterButtons("audience", uiState.audience);
-    renderExploreGrid();
+    const style = uiState.style === "all" ? "casual" : uiState.style;
+    void fetchExploreData(uiState.audience, style);
     renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(buildPinterestQueryFromState(uiState.style === "all" ? "casual" : uiState.style, uiState.audience));
+    loadPinterestImages(buildPinterestQueryFromState(style, uiState.audience));
+    void refreshResultsForCurrentFilters();
   });
 
   styleSelect?.addEventListener("change", () => {
     uiState.style = styleSelect.value;
     updateFilterButtons("style", uiState.style);
-    renderExploreGrid();
+    const style = uiState.style === "all" ? "casual" : uiState.style;
+    void fetchExploreData(uiState.audience, style);
     renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(buildPinterestQueryFromState(uiState.style === "all" ? "casual" : uiState.style, uiState.audience));
+    loadPinterestImages(buildPinterestQueryFromState(style, uiState.audience));
+    void refreshResultsForCurrentFilters();
   });
 }
 
@@ -165,31 +226,13 @@ function handleImagePreview(event) {
 
 async function handleSubmit(event) {
   event.preventDefault();
-  const formData = new FormData(form);
-
-  uiState.audience = String(formData.get("audience") || uiState.audience);
-  uiState.style = String(formData.get("style") || uiState.style);
-  uiState.formPayload = new FormData(formData);
 
   setLoadingState(true);
   setStatus("Creating your AI styling board...", "success");
   setActiveSection("results");
 
   try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: formData,
-    });
-
-    const json = await response.json();
-    if (!response.ok) {
-      throw new Error(json.error || `Server error (${response.status})`);
-    }
-
-    uiState.resultSet = normalizeResultSet(json, formData);
-    uiState.activeOutfitIndex = 0;
-    renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(uiState.resultSet.pinterestQuery);
+    await fetchAndRenderLatestResults({ resetOutfitIndex: true });
     setStatus("Outfit options generated successfully.", "success");
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
@@ -216,19 +259,7 @@ async function handleRethinkOutfit() {
     setStatus("Generating another outfit set...", "success");
 
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: new FormData(uiState.formPayload),
-      });
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.error || `Server error (${response.status})`);
-      }
-
-      uiState.resultSet = normalizeResultSet(json, uiState.formPayload);
-      uiState.activeOutfitIndex = 0;
-      renderResultSet(deriveFilteredResultSet());
-      loadPinterestImages(uiState.resultSet.pinterestQuery);
+      await fetchAndRenderLatestResults({ resetOutfitIndex: true });
       setStatus("Fresh outfit options are ready.", "success");
     } catch (error) {
       shiftOutfit(1);
@@ -240,6 +271,80 @@ async function handleRethinkOutfit() {
   }
 
   shiftOutfit(1);
+}
+
+async function refreshResultsForCurrentFilters() {
+  try {
+    await fetchAndRenderLatestResults({ resetOutfitIndex: true, backgroundRefresh: true });
+  } catch (error) {
+    console.warn("Unable to refresh filtered results.", error);
+  }
+}
+
+async function fetchAndRenderLatestResults({ resetOutfitIndex = false, backgroundRefresh = false } = {}) {
+  const requestId = ++uiState.refreshRequestId;
+  const formData = buildRequestFormData();
+
+  uiState.audience = String(formData.get("audience") || uiState.audience || "men");
+  uiState.style = String(formData.get("style") || uiState.style || "casual");
+  uiState.formPayload = new FormData(formData);
+
+  if (!backgroundRefresh) {
+    setLoadingState(true);
+  }
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: formData,
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.error || `Server error (${response.status})`);
+    }
+
+    if (requestId !== uiState.refreshRequestId) {
+      return;
+    }
+
+    uiState.resultSet = normalizeResultSet(json, formData);
+    if (resetOutfitIndex) {
+      uiState.activeOutfitIndex = 0;
+    }
+    renderResultSet(deriveFilteredResultSet());
+    loadPinterestImages(uiState.resultSet.pinterestQuery);
+  } finally {
+    if (!backgroundRefresh) {
+      setLoadingState(false);
+    }
+  }
+}
+
+function buildRequestFormData() {
+  const formData = form ? new FormData(form) : new FormData();
+  const backendStyle = resolveBackendStyleValue();
+
+  formData.set("audience", uiState.audience || audienceSelect?.value || "men");
+  formData.set("style", backendStyle);
+
+  if (audienceSelect) {
+    audienceSelect.value = String(formData.get("audience"));
+  }
+
+  if (styleSelect) {
+    styleSelect.value = backendStyle;
+  }
+
+  return formData;
+}
+
+function resolveBackendStyleValue() {
+  const selectedStyle = uiState.style || styleSelect?.value || "casual";
+  if (selectedStyle === "all") {
+    return styleSelect?.value || "casual";
+  }
+  return selectedStyle;
 }
 
 function shiftOutfit(direction) {
@@ -289,20 +394,40 @@ function renderResultSet(resultSet) {
   activeAudienceChip.textContent = `Audience: ${formatLabel(safeSet.audience)}`;
   resultSource.textContent = getSourceLabel(safeSet.source);
 
-  itemsList.innerHTML = safeSet.items.slice(0, 5).map((item) => {
-    const key = buildItemKey(item);
-    const link = safeSet.amazonLinks[key] || buildAmazonLink(item, safeSet.audience);
+  itemsList.innerHTML = safeSet.itemCards.slice(0, 5).map((item) => {
+    const key = buildItemKey(item.title);
+    const shopLink = safeSet.amazonLinks[key] || buildAmazonLink(item.title, safeSet.audience);
+    const pinterestItemUrl = buildPinterestUrl(item.title);
+    const backgroundImage = escapeAttribute(item.imageUrl || buildFallbackImageUrl(item.title, safeSet.style, safeSet.audience));
+    const safeTitle = escapeHtml(item.title);
 
     return `
       <article class="item-card">
-        <div>
-          <p class="item-card-kicker">Detected piece</p>
-          <h4 class="item-card-title">${escapeHtml(item)}</h4>
+        <div class="item-card-media" data-item-title="${safeTitle}" style="background-image: url('${backgroundImage}');"></div>
+        <div class="item-card-content">
+          <div>
+            <p class="item-card-kicker">Outfit component</p>
+            <h4 class="item-card-title">${safeTitle}</h4>
+          </div>
+          <div class="item-card-actions">
+            <a href="${escapeHtml(pinterestItemUrl)}" target="_blank" rel="noreferrer"
+               class="shop-link" aria-label="View Pinterest ideas for ${safeTitle}">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0Z"/></svg>
+              View Pin Ideas
+            </a>
+            <a href="${escapeHtml(shopLink)}" target="_blank" rel="noreferrer"
+               class="item-card-shop" aria-label="Search Amazon for ${safeTitle}">
+              Amazon
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
         </div>
-        <a href="${escapeHtml(link)}" target="_blank" rel="noreferrer" class="shop-link">Buy Now</a>
       </article>
     `;
   }).join("");
+
+  // Asynchronously re-paint each card with a real per-item Unsplash image
+  void enrichItemImages(safeSet.itemCards, safeSet.style, safeSet.audience);
 
   outfitCards.innerHTML = safeSet.outfits.map((outfit, index) => `
     <button type="button" class="outfit-option-card ${index === uiState.activeOutfitIndex ? "is-active" : ""}" data-outfit-index="${index}">
@@ -327,6 +452,48 @@ function renderResultSet(resultSet) {
   pinterestHeading.textContent = formatLabel(pinterestQuery);
   pinterestDescription.textContent = `Pinterest inspiration now tracks ${formatLabel(safeSet.audience)} looks with ${formatLabel(safeSet.style).toLowerCase()} styling references.`;
   loadPinterestImages(pinterestQuery);
+}
+
+/**
+ * Calls GET /api/suggestions to get per-item Unsplash images,
+ * then patches the background-image of every rendered .item-card-media element.
+ */
+async function enrichItemImages(itemCards, style, audience) {
+  try {
+    const effectiveStyle = (!style || style === "all") ? "casual" : style;
+    const url = `${SUGGESTIONS_URL}?audience=${encodeURIComponent(audience)}&style=${encodeURIComponent(effectiveStyle)}`;
+    const response = await fetch(url);
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const backendItems = Array.isArray(data.items) ? data.items : [];
+
+    // Build a normalised title → imageUrl lookup
+    const imageMap = {};
+    backendItems.forEach((item) => {
+      if (item.title && item.imageUrl) {
+        imageMap[item.title.toLowerCase().trim()] = item.imageUrl;
+      }
+    });
+
+    // Also honour imageUrls already on the itemCards (from a prior AI-image call)
+    itemCards.forEach((card) => {
+      const isGeneric = !card.imageUrl || card.imageUrl.includes("photo-1445205170230");
+      if (card.title && !isGeneric) {
+        imageMap[card.title.toLowerCase().trim()] = card.imageUrl;
+      }
+    });
+
+    // Patch the DOM — only update elements currently in the shortlist
+    document.querySelectorAll(".item-card-media[data-item-title]").forEach((el) => {
+      const titleKey = el.dataset.itemTitle?.toLowerCase().trim() || "";
+      if (titleKey && imageMap[titleKey]) {
+        el.style.backgroundImage = `url('${escapeAttribute(imageMap[titleKey])}')`;
+      }
+    });
+  } catch (err) {
+    console.warn("enrichItemImages: could not load per-item images.", err);
+  }
 }
 
 function loadPinterestImages(query) {
@@ -399,11 +566,13 @@ function normalizeResultSet(data, formData) {
   const outfits = sanitizeStringArray(data.outfits);
   const derivedOutfits = outfits.length ? outfits : buildDefaultOutfits(style, audience);
   const derivedItems = items.length ? items : buildDefaultItems(style, audience);
+  const itemCards = normalizeItemCards(data.itemCards, derivedItems, style, audience);
 
   return {
     audience,
     style,
     items: ensureMinimumItems(derivedItems, style, audience),
+    itemCards,
     outfits: ensureMinimumOutfits(derivedOutfits, style, audience),
     amazonLinks: normalizeAmazonLinks(data.amazonLinks, derivedItems, audience),
     pinterestQuery: String(data.pinterestQuery || buildPinterestQueryFromState(style, audience)),
@@ -425,6 +594,7 @@ function ensureResultSet(resultSet) {
   const style = String(base.style || "casual").toLowerCase();
   const items = ensureMinimumItems(sanitizeStringArray(base.items), style, audience);
   const outfits = ensureMinimumOutfits(sanitizeStringArray(base.outfits), style, audience);
+  const itemCards = normalizeItemCards(base.itemCards, items, style, audience);
 
   if (uiState.activeOutfitIndex >= outfits.length) {
     uiState.activeOutfitIndex = 0;
@@ -435,6 +605,7 @@ function ensureResultSet(resultSet) {
     audience,
     style,
     items,
+    itemCards,
     outfits,
     amazonLinks: normalizeAmazonLinks(base.amazonLinks, items, audience),
     pinterestQuery: String(base.pinterestQuery || buildPinterestQueryFromState(style, audience)),
@@ -448,6 +619,7 @@ function buildDefaultResultSet() {
     audience,
     style,
     items: buildDefaultItems(style, audience),
+    itemCards: buildDefaultItemCards(style, audience),
     outfits: buildDefaultOutfits(style, audience),
     amazonLinks: normalizeAmazonLinks({}, buildDefaultItems(style, audience), audience),
     pinterestQuery: buildPinterestQueryFromState(style, audience),
@@ -536,6 +708,54 @@ function sanitizeStringArray(value) {
     : [];
 }
 
+function normalizeItemCards(value, items, style, audience) {
+  const normalized = Array.isArray(value)
+    ? value
+      .map((entry) => {
+        if (!entry) {
+          return null;
+        }
+
+        if (typeof entry === "string") {
+          return {
+            title: entry.trim(),
+            imageUrl: buildFallbackImageUrl(entry, style, audience),
+          };
+        }
+
+        const title = String(entry.title || entry.name || "").trim();
+        if (!title) {
+          return null;
+        }
+
+        return {
+          title,
+          imageUrl: String(entry.imageUrl || buildFallbackImageUrl(title, style, audience)).trim(),
+        };
+      })
+      .filter(Boolean)
+    : [];
+
+  const merged = [...normalized];
+  ensureMinimumItems(items, style, audience).forEach((item) => {
+    if (!merged.some((entry) => entry.title.toLowerCase() === item.toLowerCase())) {
+      merged.push({
+        title: item,
+        imageUrl: buildFallbackImageUrl(item, style, audience),
+      });
+    }
+  });
+
+  return merged.slice(0, 5);
+}
+
+function buildDefaultItemCards(style, audience) {
+  return buildDefaultItems(style, audience).map((item) => ({
+    title: item,
+    imageUrl: buildFallbackImageUrl(item, style, audience),
+  }));
+}
+
 function updateFilterButtons(group, value) {
   document.querySelectorAll(`[data-filter-group="${group}"]`).forEach((button) => {
     button.classList.toggle("is-active", button.dataset.filterValue === value);
@@ -575,7 +795,7 @@ function buildFilterDescription(audience, style) {
 }
 
 function buildPinterestUrl(query) {
-  return `https://in.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`;
+  return `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`;
 }
 
 function buildPinterestQueryFromState(style, audience) {
@@ -583,7 +803,30 @@ function buildPinterestQueryFromState(style, audience) {
 }
 
 function buildAmazonLink(item, audience) {
-  return `https://www.amazon.in/s?k=${encodeURIComponent(`${item} ${audience}`)}`;
+  // Spec: audience first, then item name; open on amazon.com
+  return `https://www.amazon.com/s?k=${encodeURIComponent(`${audience} ${item}`)}`;
+}
+
+/**
+ * Returns a varied Unsplash image URL for each item using a curated seed map.
+ * This eliminates the single-photo fallback before the async enrichment runs.
+ */
+function buildFallbackImageUrl(item, style, audience) {
+  // Curated Unsplash photo IDs grouped by style keyword
+  const seedsByStyle = {
+    formal:     ["1507679799987", "1598032895455", "1490367532201", "1541532642820"],
+    minimal:    ["1483985988355", "1512436991641", "1434389677669", "1489987707849"],
+    genz:       ["1529139574466", "1515886657613", "1524504388940", "1503919545889"],
+    athleisure: ["1571019613454", "1571731956672", "1556742031526", "1544216717564"],
+    casual:     ["1515886657613", "1496747611176", "1519238263530", "1516627145497"],
+  };
+  const seeds = seedsByStyle[style] || seedsByStyle.casual;
+  // Derive a stable index from the item title so same item always picks same photo
+  const idx = Math.abs(
+    [...String(item)].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  ) % seeds.length;
+  const photoId = seeds[idx];
+  return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=900&q=80`;
 }
 
 function buildItemKey(item) {
@@ -639,4 +882,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeAttribute(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("'", "\\'");
 }

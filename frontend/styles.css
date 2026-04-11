@@ -231,6 +231,13 @@ body {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
 }
 
+/* Item cards are no longer wrapped in an <a>; hover is on the article itself */
+.item-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 0, 0, 0.22);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
 .item-card-media {
   min-height: 220px;
   background-color: #e8e8e8;
@@ -246,6 +253,14 @@ body {
   justify-content: space-between;
   gap: 0.9rem;
   padding: 1.1rem 1.1rem 1.1rem 0;
+}
+
+/* Action buttons row inside each item card */
+.item-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .item-card-kicker {
@@ -267,12 +282,13 @@ body {
 .shop-link {
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
   justify-content: center;
   width: fit-content;
   border-radius: 999px;
   background: #0a0a0a;
-  padding: 0.75rem 1.1rem;
-  font-size: 0.73rem;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -292,29 +308,34 @@ body {
 
 .item-card-shop {
   display: inline-flex;
-  width: fit-content;
   align-items: center;
-  justify-content: center;
+  gap: 0.3rem;
+  width: fit-content;
   border-radius: 999px;
   border: 1.5px solid rgba(0, 0, 0, 0.12);
   background: #f5f5f5;
-  padding: 0.75rem 1.1rem;
-  font-size: 0.73rem;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #0a0a0a;
   text-decoration: none;
+  cursor: pointer;
   transition:
     transform 200ms ease,
     box-shadow 200ms ease,
-    border-color 200ms ease;
+    background 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
 }
 
 .item-card-shop:hover {
   transform: translateY(-2px);
+  background: #0a0a0a;
+  color: #ffffff;
   border-color: #0a0a0a;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
 }
 
 /* ── Pinterest Cards ───────────────────────────────────────── */
