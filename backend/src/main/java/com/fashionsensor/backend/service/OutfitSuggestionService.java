@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 
 @Service
 public class OutfitSuggestionService {
@@ -33,6 +34,7 @@ public class OutfitSuggestionService {
     private final ObjectMapper objectMapper;
     private final String openAiApiKey;
     private final String openAiModel;
+    private final Random random = new Random();
 
     public OutfitSuggestionService(
             WebClient.Builder webClientBuilder,
@@ -170,9 +172,15 @@ public class OutfitSuggestionService {
                 "content", List.of(textContent, imageContent)
         );
 
+        String baseSystemContent = "You are a fashion stylist and vision assistant. Return valid JSON only.";
+        String userNotes = requestData.get("notes");
+        if (StringUtils.hasText(userNotes)) {
+            baseSystemContent += " CRITICAL CONSTRAINT: The user explicitly noted: '" + userNotes + "'. You MUST STRICTLY exclude any items, colors, or styles mentioned as a negative (e.g. 'no white', 'avoid red', 'without hat'). DO NOT include them in any response.";
+        }
+
         Map<String, Object> systemMessage = Map.of(
                 "role", "system",
-                "content", "You are a fashion stylist and vision assistant. Return valid JSON only."
+                "content", baseSystemContent
         );
 
         Map<String, Object> responseFormat = Map.of(
@@ -228,132 +236,48 @@ public class OutfitSuggestionService {
 
     private List<String> buildFallbackItems(String style, String purpose, String audience, String location) {
         String normalizedStyle = defaultIfBlank(style, "casual").toLowerCase(Locale.ENGLISH);
-        String normalizedPurpose = defaultIfBlank(purpose, "casual").toLowerCase(Locale.ENGLISH);
         String normalizedAudience = defaultIfBlank(audience, "men").toLowerCase(Locale.ENGLISH);
-        String normalizedLocation = defaultIfBlank(location, "").toLowerCase(Locale.ENGLISH);
 
-        if (normalizedPurpose.contains("wedding")) {
-            return normalizedAudience.contains("women")
-                    ? List.of("embroidered kurta set", "silk blouse", "block heels", "statement earrings", "embellished clutch")
-                    : List.of("bandhgala jacket", "tailored trousers", "leather loafers", "pocket square", "textured watch");
-        }
+        List<String> tops = normalizedAudience.contains("women") 
+            ? List.of("silk blouse", "ribbed knit top", "cropped graphic tee", "tailored blazer", "neutral tank")
+            : (normalizedAudience.contains("kids") 
+                ? List.of("graphic sweatshirt", "solid tee", "striped polo", "hoodie", "soft cardigan") 
+                : List.of("crisp oxford shirt", "boxy tee", "fine knit sweater", "navy blazer", "lightweight overshirt"));
 
-        if (normalizedPurpose.contains("formal") || normalizedStyle.contains("formal")) {
-            return normalizedAudience.contains("women")
-                    ? List.of("tailored blazer", "straight-fit trousers", "silk shell top", "pointed heels", "structured tote")
-                    : List.of("crisp oxford shirt", "slim-fit trousers", "derby shoes", "fine knit layer", "leather belt");
-        }
+        List<String> bottoms = normalizedAudience.contains("women")
+            ? List.of("straight-fit trousers", "wide-leg jeans", "pleated midi skirt", "flare leggings", "tailored shorts")
+            : (normalizedAudience.contains("kids")
+                ? List.of("soft denim", "cargo shorts", "joggers", "tailored chinos", "corduroy pants")
+                : List.of("slim-fit trousers", "baggy jeans", "pleated chinos", "cargo pants", "tapered denim"));
 
-        if (normalizedPurpose.contains("travel") || normalizedLocation.contains("airport")) {
-            return List.of("breathable tee", "overshirt", "relaxed joggers", "comfortable sneakers", "weekender backpack");
-        }
+        List<String> shoes = normalizedAudience.contains("women")
+            ? List.of("platform sneakers", "pointed heels", "loafers", "sleek flats", "ankle boots")
+            : (normalizedAudience.contains("kids")
+                ? List.of("play sneakers", "slip-on shoes", "sporty sandals", "colorful trainers", "canvas shoes")
+                : List.of("clean sneakers", "leather loafers", "derby shoes", "chunky trainers", "skate shoes"));
 
-        if (normalizedStyle.contains("athleisure")) {
-            return List.of("performance jacket", "quick-dry tee", "track pants", "running shoes", "sport watch");
-        }
+        List<String> accessories = normalizedAudience.contains("women")
+            ? List.of("structured tote", "gold hoops", "mini shoulder bag", "silk scarf", "layered rings")
+            : (normalizedAudience.contains("kids")
+                ? List.of("light cap", "mini backpack", "colorful beanie", "fun watch", "crossbody pouch")
+                : List.of("minimal watch", "leather belt", "silver chain", "crossbody bag", "polarized sunglasses"));
 
-        if (normalizedStyle.contains("genz")) {
-            return normalizedAudience.contains("women")
-                    ? List.of("cropped graphic tee", "wide-leg jeans", "platform sneakers", "mini shoulder bag", "layered rings")
-                    : List.of("boxy tee", "baggy jeans", "chunky sneakers", "crossbody bag", "silver chain");
-        }
-
-        if (normalizedAudience.contains("kids")) {
-            return List.of("graphic sweatshirt", "soft denim", "play sneakers", "light cap", "mini backpack");
-        }
-
-        if (normalizedAudience.contains("women")) {
-            return List.of("neutral top", "blue jeans", "white sneakers", "cropped cardigan", "sleek tote");
-        }
-
-        return List.of("white shirt", "blue jeans", "clean sneakers", "lightweight overshirt", "minimal watch");
+        return List.of(
+            tops.get(random.nextInt(tops.size())),
+            bottoms.get(random.nextInt(bottoms.size())),
+            shoes.get(random.nextInt(shoes.size())),
+            accessories.get(random.nextInt(accessories.size())),
+            "signature fragrance"
+        );
     }
 
     private List<String> buildFallbackOutfits(String style, String purpose, String audience, String location) {
-        String normalizedStyle = defaultIfBlank(style, "casual").toLowerCase(Locale.ENGLISH);
-        String normalizedPurpose = defaultIfBlank(purpose, "casual").toLowerCase(Locale.ENGLISH);
-        String normalizedAudience = defaultIfBlank(audience, "men").toLowerCase(Locale.ENGLISH);
-        String normalizedLocation = defaultIfBlank(location, "").toLowerCase(Locale.ENGLISH);
-
-        if (normalizedPurpose.contains("wedding")) {
-            return normalizedAudience.contains("women")
-                    ? List.of(
-                    "embroidered kurta set + block heels + statement earrings",
-                    "silk anarkali + embellished flats + festive clutch",
-                    "draped saree + metallic sandals + kundan jewelry"
-            )
-                    : List.of(
-                    "bandhgala jacket + tailored trousers + leather loafers",
-                    "embroidered kurta + churidar + mojaris",
-                    "structured sherwani + tapered pants + polished brogues"
-            );
+        List<String> outfits = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            List<String> items = buildFallbackItems(style, purpose, audience, location);
+            outfits.add(items.get(0) + " + " + items.get(1) + " + " + items.get(2) + " + " + items.get(3));
         }
-
-        if (normalizedPurpose.contains("formal") || normalizedStyle.contains("formal")) {
-            return normalizedAudience.contains("women")
-                    ? List.of(
-                    "tailored blazer + straight-fit trousers + pointed heels",
-                    "silk blouse + pencil trousers + slingback pumps",
-                    "belted co-ord set + loafers + structured tote"
-            )
-                    : List.of(
-                    "crisp oxford shirt + slim-fit trousers + derby shoes",
-                    "fine knit polo + pleated pants + loafers",
-                    "navy blazer + tapered chinos + leather sneakers"
-            );
-        }
-
-        if (normalizedPurpose.contains("travel") || normalizedLocation.contains("airport")) {
-            return List.of(
-                    "breathable tee + relaxed joggers + comfortable sneakers",
-                    "hoodie + cargo joggers + trainers",
-                    "overshirt + stretch denim + slip-on sneakers"
-            );
-        }
-
-        if (normalizedStyle.contains("athleisure")) {
-            return List.of(
-                    "performance jacket + track pants + running shoes",
-                    "dry-fit tee + tapered joggers + knit trainers",
-                    "zip hoodie + tech shorts + lifestyle sneakers"
-            );
-        }
-
-        if (normalizedStyle.contains("genz")) {
-            return normalizedAudience.contains("women")
-                    ? List.of(
-                    "cropped graphic tee + wide-leg jeans + platform sneakers",
-                    "baby tee + parachute pants + chunky sneakers",
-                    "oversized shirt + mini skirt + high-top sneakers"
-            )
-                    : List.of(
-                    "boxy tee + baggy jeans + chunky sneakers",
-                    "black t-shirt + cargo pants + sneakers",
-                    "hoodie + loose-fit denim + retro trainers"
-            );
-        }
-
-        if (normalizedAudience.contains("kids")) {
-            return List.of(
-                    "graphic sweatshirt + soft denim + play sneakers",
-                    "striped tee + cargo shorts + sporty sandals",
-                    "hoodie + joggers + colorful trainers"
-            );
-        }
-
-        if (normalizedAudience.contains("women")) {
-            return List.of(
-                    "neutral top + blue jeans + white sneakers",
-                    "ribbed knit top + straight pants + loafers",
-                    "cropped cardigan + midi skirt + sleek flats"
-            );
-        }
-
-        return List.of(
-                "white shirt + blue jeans + sneakers",
-                "black t-shirt + cargo pants + sneakers",
-                "hoodie + joggers + trainers"
-        );
+        return outfits;
     }
 
     private List<String> sanitizeItems(JsonNode itemsNode) {

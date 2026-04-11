@@ -2,6 +2,7 @@ package com.fashionsensor.backend.controller;
 
 import com.fashionsensor.backend.model.SuggestionResponse;
 import com.fashionsensor.backend.service.OutfitSuggestionService;
+import com.fashionsensor.backend.service.ExploreService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +27,15 @@ public class FashionController {
 
     private static final Logger logger = LoggerFactory.getLogger(FashionController.class);
     private final OutfitSuggestionService outfitSuggestionService;
+    private final ExploreService exploreService;
+    private final UnsplashProxyService unsplashProxyService;
 
-    public FashionController(OutfitSuggestionService outfitSuggestionService) {
+    public FashionController(OutfitSuggestionService outfitSuggestionService, 
+                             ExploreService exploreService,
+                             UnsplashProxyService unsplashProxyService) {
         this.outfitSuggestionService = outfitSuggestionService;
+        this.exploreService = exploreService;
+        this.unsplashProxyService = unsplashProxyService;
     }
 
     @PostMapping(
@@ -78,5 +85,25 @@ public class FashionController {
 
         String value = data.get(key);
         return value == null || value.trim().isEmpty() ? fallback : value.trim();
+    }
+
+    @GetMapping("/explore")
+    public ResponseEntity<java.util.List<Map<String, String>>> explore(
+            @RequestParam(required = false, defaultValue = "men") String audience,
+            @RequestParam(required = false, defaultValue = "all") String style
+    ) {
+        logger.info("Received explore request. audience={}, style={}", audience, style);
+        return ResponseEntity.ok(exploreService.fetchExploreItems(audience, style));
+    }
+
+    @GetMapping("/unsplash")
+    public reactor.core.publisher.Mono<ResponseEntity<String>> searchUnsplash(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "6") int per_page,
+            @RequestParam(defaultValue = "portrait") String orientation
+    ) {
+        return unsplashProxyService.searchPhotos(query, per_page, orientation)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 }

@@ -1,0 +1,11 @@
+# Maven
+target/
+
+# Mac
+.DS_Store
+
+# Node (if any later)
+node_modules/
+
+# Logs
+*.log

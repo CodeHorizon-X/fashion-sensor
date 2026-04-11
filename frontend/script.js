@@ -25,6 +25,9 @@ const styleSelect = document.getElementById("style");
 const previousOutfitButton = document.getElementById("previousOutfitButton");
 const nextOutfitButton = document.getElementById("nextOutfitButton");
 const rethinkOutfitButton = document.getElementById("rethinkOutfitButton");
+const globalSearch = document.getElementById("globalSearch");
+const themeToggle = document.getElementById("themeToggle");
+const themeIcon = document.getElementById("themeIcon");
 
 const API_URL = "http://localhost:8080/api/suggest";
 let previewUrl = null;
@@ -71,6 +74,9 @@ function initialize() {
 
   photoInput?.addEventListener("change", handleImagePreview);
   form?.addEventListener("submit", handleSubmit);
+  globalSearch?.addEventListener("input", handleSearch);
+  globalSearch?.addEventListener("keydown", handleSearch);
+  themeToggle?.addEventListener("click", toggleTheme);
 }
 
 function bindSectionNavigation() {
@@ -167,13 +173,18 @@ async function handleSubmit(event) {
   event.preventDefault();
   const formData = new FormData(form);
 
-  uiState.audience = String(formData.get("audience") || uiState.audience);
-  uiState.style = String(formData.get("style") || uiState.style);
+  // Sync current UI state explicitly to formData
+  formData.set("audience", uiState.audience);
+  formData.set("style", uiState.style);
   uiState.formPayload = new FormData(formData);
 
   setLoadingState(true);
   setStatus("Creating your AI styling board...", "success");
   setActiveSection("results");
+
+  // Add skeleton loaders to result panels
+  outfitCards.innerHTML = '<div class="skeleton" style="height: 120px; border-radius: 1.5rem; width: 100%;"></div>'.repeat(3);
+  itemsList.innerHTML = '<div class="skeleton" style="height: 80px; border-radius: 1.4rem; width: 100%;"></div>'.repeat(4);
 
   try {
     const response = await fetch(API_URL, {
@@ -253,6 +264,57 @@ function shiftOutfit(direction) {
   renderResultSet(activeSet);
 }
 
+function handleSearch(event) {
+  // If Enter key is pressed, execute live Unsplash search
+  if (event.type === 'keydown' && event.key !== 'Enter') return;
+  if (event.type === 'keydown' && event.key === 'Enter') {
+    event.preventDefault();
+    const query = event.target.value.trim();
+    if (!query) return;
+    
+    // Switch to Explore section to see live results
+    setActiveSection("explore");
+    activeFilterTitle.textContent = "Live Search";
+    activeFilterDescription.textContent = `Showing real-time results for "${query}"`;
+    
+    fetchUnsplashImages(query + " fashion outfit");
+    return;
+  }
+
+  // Filter fallback
+  const query = event.target.value.toLowerCase().trim();
+  
+  // Filter Explore Data if on explore screen
+  document.querySelectorAll("#exploreGrid .product-card").forEach((card) => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = text.includes(query) ? "" : "none";
+  });
+
+  // Filter Items and Outfits if on results screen
+  document.querySelectorAll("#itemsList .item-card").forEach((card) => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = text.includes(query) ? "flex" : "none";
+  });
+
+  document.querySelectorAll("#outfitCards .outfit-option-card").forEach((card) => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = text.includes(query) ? "block" : "none";
+  });
+}
+
+function toggleTheme() {
+  document.body.classList.toggle("light-mode");
+  const isLight = document.body.classList.contains("light-mode");
+  
+  if (isLight) {
+    // Sun Icon
+    themeIcon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+  } else {
+    // Moon Icon
+    themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+  }
+}
+
 function setActiveSection(sectionId) {
   uiState.section = sectionId;
 
@@ -263,21 +325,72 @@ function setActiveSection(sectionId) {
   document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderExploreGrid() {
+function applyNegativeConstraints(baseQuery) {
+  const notesElement = document.getElementById("notes");
+  if (!notesElement) return baseQuery;
+  
+  const notesText = notesElement.value.toLowerCase().trim();
+  if (!notesText) return baseQuery;
+
+  // Regex looks for "avoid", "no", "without", "minus", "not" followed by a word
+  const negativeMatches = notesText.match(/(?:avoid|no|without|minus|never|not)\s+([a-z]+)/g);
+  let finalQuery = baseQuery;
+  
+  if (negativeMatches) {
+    negativeMatches.forEach(match => {
+      const parts = match.split(/\s+/);
+      if (parts.length > 1) {
+        finalQuery += ` -${parts[1]}`;
+      }
+    });
+  }
+  
+  return finalQuery.trim();
+}
+
+async function fetchUnsplashImages(query) {
+  exploreGrid.innerHTML = Array.from({ length: 6 }).map(() => '<div class="skeleton" style="height: 380px; border-radius: 1.8rem;"></div>').join("");
+  
+  const constrainedQuery = applyNegativeConstraints(query);
+
+  try {
+    const response = await fetch(`http://localhost:8080/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=6&orientation=portrait`);
+    if (!response.ok) throw new Error("Rate limit or auth issue with backend Unsplash proxy.");
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      // Map Unsplash results perfectly into our Explore cards
+      const unsplashCards = data.results.map((photo, index) => ({
+        title: query.replace(" fashion outfit", "") + ` Vol. ${index + 1}`,
+        description: photo.description || photo.alt_description || "High resolution fashion imagery fetched securely from Unsplash.",
+        image: photo.urls.regular,
+        audience: uiState.audience,
+        style: uiState.style
+      }));
+      exploreGrid.innerHTML = unsplashCards.map(createExploreCardMarkup).join("");
+    } else {
+      throw new Error("No Unsplash results found.");
+    }
+  } catch (error) {
+    console.error("Unsplash fetch failed, degrading to local fallbacks...", error);
+    // Graceful degradation fallback using static mock data
+    const visibleCards = exploreCards.filter(card => card.audience === uiState.audience && (uiState.style === "all" || card.style === uiState.style));
+    const fallbackCards = visibleCards.length >= 3 ? visibleCards : exploreCards.filter(card => card.audience === uiState.audience).slice(0, 5);
+    exploreGrid.innerHTML = fallbackCards.map(createExploreCardMarkup).join("");
+  }
+}
+
+async function renderExploreGrid() {
   const audience = uiState.audience || "men";
   const style = uiState.style || "all";
 
-  const visibleCards = exploreCards.filter((card) => {
-    const audienceMatch = card.audience === audience;
-    const styleMatch = style === "all" || card.style === style;
-    return audienceMatch && styleMatch;
-  });
-
-  const cardsToRender = visibleCards.length >= 3 ? visibleCards : exploreCards.filter((card) => card.audience === audience).slice(0, 5);
-
   activeFilterTitle.textContent = `${capitalize(audience)} / ${style === "all" ? "All Looks" : formatLabel(style)}`;
   activeFilterDescription.textContent = buildFilterDescription(audience, style);
-  exploreGrid.innerHTML = cardsToRender.map(createExploreCardMarkup).join("");
+
+  // Auto-build the Unsplash live search query based on selected chips
+  const query = `${capitalize(audience)} ${style === "all" ? "Fashion" : formatLabel(style)} Fashion Outfit`;
+  
+  fetchUnsplashImages(query);
 }
 
 function renderResultSet(resultSet) {
@@ -321,74 +434,83 @@ function renderResultSet(resultSet) {
   previousOutfitButton.disabled = safeSet.outfits.length <= 1;
   nextOutfitButton.disabled = safeSet.outfits.length <= 1;
 
-  const pinterestQuery = safeSet.pinterestQuery || buildPinterestQueryFromState(safeSet.style, safeSet.audience);
+  // Dynamically sync Pinterest to the CURRENT active outfit block
+  const pinterestQuery = activeOutfit || safeSet.pinterestQuery || buildPinterestQueryFromState(safeSet.style, safeSet.audience);
   const pinterestUrl = buildPinterestUrl(pinterestQuery);
   pinterestLink.href = pinterestUrl;
   pinterestHeading.textContent = formatLabel(pinterestQuery);
-  pinterestDescription.textContent = `Pinterest inspiration now tracks ${formatLabel(safeSet.audience)} looks with ${formatLabel(safeSet.style).toLowerCase()} styling references.`;
+  pinterestDescription.textContent = `Pinterest inspiration tracking your active selection: ${formatLabel(pinterestQuery)}.`;
   loadPinterestImages(pinterestQuery);
 }
 
-function loadPinterestImages(query) {
+async function loadPinterestImages(query) {
   if (!pinterestContainer) {
     return;
   }
 
-  const normalizedQuery = String(query || buildPinterestQueryFromState("casual", uiState.audience))
-    .replace(/\s+/g, " ")
-    .trim();
-  const descriptors = pinterestDescriptors[uiState.audience] || pinterestDescriptors.men;
-  const pinterestUrl = buildPinterestUrl(normalizedQuery);
+  const normalizedQuery = String(query || buildPinterestQueryFromState("casual", uiState.audience)).replace(/\s+/g, " ").trim();
+  const constrainedQuery = applyNegativeConstraints(normalizedQuery);
+  
+  pinterestContainer.innerHTML = Array.from({ length: 4 }).map(() => '<div class="skeleton" style="height: 380px; border-radius: 1.5rem;"></div>').join("");
 
-  pinterestContainer.innerHTML = "";
+  try {
+    const response = await fetch(`http://localhost:8080/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=4&orientation=portrait`);
+    if (!response.ok) throw new Error("Backend Unsplash proxy limit reached.");
+    const data = await response.json();
 
-  for (let index = 0; index < 4; index += 1) {
-    const descriptor = descriptors[index % descriptors.length];
-    const imageQuery = `${normalizedQuery} ${descriptor}`;
+    if (data.results && data.results.length > 0) {
+      pinterestContainer.innerHTML = "";
+      data.results.forEach((photo, index) => {
+        // As requested: "takes the exact title of the card and opens a Pinterest search for that specific outfit"
+        const cardTitle = normalizedQuery;
+        const pinterestUrl = `https://in.pinterest.com/search/pins/?q=${encodeURIComponent(cardTitle)}`;
 
-    const card = document.createElement("div");
-    card.className = "pinterest-card";
-    card.tabIndex = 0;
+        const card = document.createElement("div");
+        card.className = "pinterest-card";
+        card.tabIndex = 0;
 
-    const img = document.createElement("img");
-    img.src = `https://source.unsplash.com/400x500/?${encodeURIComponent(imageQuery)},fashion&sig=${index + Date.now()}`;
-    img.alt = imageQuery;
-    img.className = "pinterest-card-image";
-    img.loading = "lazy";
-    img.onerror = () => {
-      img.onerror = null;
-      img.src = "https://via.placeholder.com/400x500?text=Style+Inspiration";
-    };
+        const img = document.createElement("img");
+        img.src = photo.urls.regular;
+        img.alt = photo.alt_description || cardTitle;
+        img.className = "pinterest-card-image";
+        img.loading = "lazy";
 
-    const content = document.createElement("div");
-    content.className = "pinterest-card-body";
+        const content = document.createElement("div");
+        content.className = "pinterest-card-body";
 
-    const title = document.createElement("h3");
-    title.className = "pinterest-card-title";
-    title.innerText = `Style Idea ${index + 1}`;
+        const title = document.createElement("h3");
+        title.className = "pinterest-card-title";
+        title.innerText = `Style Idea ${index + 1}`;
 
-    const subtitle = document.createElement("p");
-    subtitle.className = "pinterest-card-subtitle";
-    subtitle.innerText = formatLabel(imageQuery);
+        const subtitle = document.createElement("p");
+        subtitle.className = "pinterest-card-subtitle";
+        subtitle.innerText = formatLabel(cardTitle);
 
-    content.appendChild(title);
-    content.appendChild(subtitle);
+        content.appendChild(title);
+        content.appendChild(subtitle);
 
-    card.appendChild(img);
-    card.appendChild(content);
+        card.appendChild(img);
+        card.appendChild(content);
 
-    card.onclick = () => {
-      window.open(pinterestUrl, "_blank", "noopener,noreferrer");
-    };
+        card.onclick = () => {
+          window.open(pinterestUrl, "_blank", "noopener,noreferrer");
+        };
 
-    card.onkeydown = (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        window.open(pinterestUrl, "_blank", "noopener,noreferrer");
-      }
-    };
+        card.onkeydown = (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            window.open(pinterestUrl, "_blank", "noopener,noreferrer");
+          }
+        };
 
-    pinterestContainer.appendChild(card);
+        pinterestContainer.appendChild(card);
+      });
+    } else {
+      throw new Error("No Unsplash results found for Pinterest section.");
+    }
+  } catch (error) {
+    console.error("Pinterest Unsplash fetch failed.", error);
+    // Silent degradation handled by existing placeholder grids if needed, but we can just leave it as is or show an error
   }
 }
 
