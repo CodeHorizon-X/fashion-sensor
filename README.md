@@ -65,8 +65,6 @@ Fashion sensor/
 
 ## 📸 Screenshots
 
-> **Tip:** Replace these placeholders with your actual project screenshots\!
-
 | Home Screen | Suggestion Results |
 |<img width="1792" height="926" alt="Screenshot 2026-04-12 at 1 55 50 PM" src="https://github.com/user-attachments/assets/81974c8d-657b-4c26-9208-0b1850ee35eb" />
 | <img width="1791" height="1035" alt="Screenshot 2026-04-12 at 1 56 08 PM" src="https://github.com/user-attachments/assets/61931f0e-d6ba-48b9-881a-69345e66e1de" />
