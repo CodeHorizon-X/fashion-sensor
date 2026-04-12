@@ -28,8 +28,8 @@ const rethinkOutfitButton = document.getElementById("rethinkOutfitButton");
 const globalSearch = document.getElementById("globalSearch");
 const themeToggle = document.getElementById("themeToggle");
 const themeIcon = document.getElementById("themeIcon");
-
-const API_URL = "http://localhost:8080/api/suggest";
+const API_BASE_URL = "http://localhost:8081";
+const API_URL = `${API_BASE_URL}/api/suggest`;
 let previewUrl = null;
 
 const uiState = {
@@ -157,9 +157,15 @@ function handleImagePreview(event) {
   }
 
   if (!file) {
-    previewContainer.classList.add("hidden");
-    imagePreview.removeAttribute("src");
-    fileMeta.textContent = "";
+    previewContainer?.classList.add("hidden");
+    imagePreview?.removeAttribute("src");
+    if (fileMeta) {
+      fileMeta.textContent = "";
+    }
+    return;
+  }
+
+  if (!previewContainer || !imagePreview || !fileMeta) {
     return;
   }
 
@@ -354,7 +360,7 @@ async function fetchUnsplashImages(query) {
   const constrainedQuery = applyNegativeConstraints(query);
 
   try {
-    const response = await fetch(`http://localhost:8080/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=6&orientation=portrait`);
+    const response = await fetch(`${API_BASE_URL}/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=6&orientation=portrait`);
     if (!response.ok) throw new Error("Rate limit or auth issue with backend Unsplash proxy.");
     const data = await response.json();
     
@@ -454,7 +460,7 @@ async function loadPinterestImages(query) {
   pinterestContainer.innerHTML = Array.from({ length: 4 }).map(() => '<div class="skeleton" style="height: 380px; border-radius: 1.5rem;"></div>').join("");
 
   try {
-    const response = await fetch(`http://localhost:8080/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=4&orientation=portrait`);
+    const response = await fetch(`${API_BASE_URL}/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=4&orientation=portrait`);
     if (!response.ok) throw new Error("Backend Unsplash proxy limit reached.");
     const data = await response.json();
 
