@@ -117,7 +117,9 @@ If you like this project:
 2. Run:
    
 git add README.md
+
 git commit -m "docs: finalized README with co-author and feature updates"
+
 git push origin main
 
 
