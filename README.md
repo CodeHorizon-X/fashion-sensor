@@ -112,18 +112,14 @@ If you like this project:
   * Connect with us on **LinkedIn** 🚀
 
 <!-- end list -->
+----
 
-````
-
----
-
-### **How to push this final version:**
+**How to push this final version:**
 1. Open your terminal in the `Fashion sensor` folder.
 2. Run:
-```bash
+   
 git add README.md
 git commit -m "docs: finalized README with co-author and feature updates"
 git push origin main
-````
 
 
