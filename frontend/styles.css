@@ -9,6 +9,64 @@ body {
   color: #ffffff;
 }
 
+.hero-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-copy h1 {
+  max-width: 11ch;
+}
+
+.editor-note-wrap {
+  position: relative;
+  z-index: 3;
+}
+
+.editor-note-card {
+  max-width: 38rem;
+}
+
+.hero-primary-cta {
+  color: #000000 !important;
+}
+
+.header-actions {
+  flex: 0 0 auto;
+}
+
+.search-shell {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  max-width: none;
+  transition: width 300ms ease;
+}
+
+.search-shell:focus-within {
+  width: min(16rem, calc(100vw - 16rem));
+}
+
+#globalSearch {
+  width: 2.5rem;
+  color: transparent !important;
+  caret-color: transparent;
+  overflow: hidden;
+}
+
+#globalSearch::placeholder {
+  color: transparent !important;
+}
+
+#globalSearch:focus {
+  width: 100%;
+  color: #ffffff !important;
+  caret-color: currentColor;
+}
+
+#globalSearch:focus::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
 #exploreGrid, #outfitCards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -548,6 +606,14 @@ body {
     background-position: 62% center;
   }
 
+  .hero-copy h1 {
+    max-width: 10ch;
+  }
+
+  .search-shell:focus-within {
+    width: min(13rem, calc(100vw - 12rem));
+  }
+
   .promo-card h3 {
     font-size: 1.8rem;
   }
@@ -559,6 +625,18 @@ body {
 
   .secondary-action {
     width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .editor-note-wrap {
+    transform: translateX(4rem);
+  }
+}
+
+@media (min-width: 1280px) {
+  .editor-note-wrap {
+    transform: translateX(7rem);
   }
 }
 
@@ -587,22 +665,34 @@ body.light-mode {
   color: #000000;
 }
 
-body.light-mode p,
-body.light-mode h1,
-body.light-mode h2,
-body.light-mode h3,
-body.light-mode h4,
-body.light-mode span {
+body.light-mode main > section:not(:first-child) p,
+body.light-mode main > section:not(:first-child) h1,
+body.light-mode main > section:not(:first-child) h2,
+body.light-mode main > section:not(:first-child) h3,
+body.light-mode main > section:not(:first-child) h4,
+body.light-mode footer p,
+body.light-mode footer span {
   color: #000000 !important;
 }
 
-body.light-mode .text-white,
 body.light-mode header .text-white,
-body.light-mode .text-white\/80,
-body.light-mode .text-white\/70,
-body.light-mode .text-white\/55,
-body.light-mode .text-white\/60,
-body.light-mode .text-white\/65 {
+body.light-mode header .text-white\/80,
+body.light-mode header .text-white\/70,
+body.light-mode header .text-white\/55,
+body.light-mode header .text-white\/60,
+body.light-mode header .text-white\/65,
+body.light-mode main > section:not(:first-child) .text-white,
+body.light-mode main > section:not(:first-child) .text-white\/80,
+body.light-mode main > section:not(:first-child) .text-white\/70,
+body.light-mode main > section:not(:first-child) .text-white\/55,
+body.light-mode main > section:not(:first-child) .text-white\/60,
+body.light-mode main > section:not(:first-child) .text-white\/65,
+body.light-mode footer .text-white,
+body.light-mode footer .text-white\/80,
+body.light-mode footer .text-white\/70,
+body.light-mode footer .text-white\/55,
+body.light-mode footer .text-white\/60,
+body.light-mode footer .text-white\/65 {
   color: #000000 !important;
 }
 
@@ -624,6 +714,21 @@ body.light-mode section.rounded-\[2rem\] {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08) !important;
 }
 
+body.light-mode header {
+  background: rgba(247, 244, 238, 0.94) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+}
+
+body.light-mode header a,
+body.light-mode header button {
+  color: #1a1a1a !important;
+}
+
+body.light-mode header .nav-tab:not(.is-active) {
+  color: rgba(17, 17, 17, 0.58) !important;
+}
+
 body.light-mode .field-input {
   background: rgba(255, 255, 255, 0.45) !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
@@ -637,26 +742,48 @@ body:not(.light-mode) .field-input {
 
 /* High Contrast Active States */
 body:not(.light-mode) .nav-tab.is-active,
-body:not(.light-mode) .category-tab.is-active,
-body:not(.light-mode) .outfit-option-card.is-active {
+body:not(.light-mode) .category-tab.is-active {
   background: rgba(255, 255, 255, 1) !important;
   color: #000000 !important;
   border-color: rgba(255, 255, 255, 1) !important;
 }
 
+body:not(.light-mode) .outfit-option-card.is-active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  color: #ffffff !important;
+}
+
+body:not(.light-mode) .outfit-option-card.is-active .outfit-option-kicker,
+body:not(.light-mode) .outfit-option-card.is-active .outfit-option-title {
+  color: #ffffff !important;
+}
+
 body.light-mode .nav-tab.is-active,
-body.light-mode .category-tab.is-active,
-body.light-mode .outfit-option-card.is-active {
+body.light-mode .category-tab.is-active {
   background: #000000 !important;
   color: #ffffff !important;
   border-color: #000000 !important;
+}
+
+body.light-mode .outfit-option-card.is-active {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #111111 !important;
+}
+
+body.light-mode .outfit-option-card.is-active .outfit-option-kicker,
+body.light-mode .outfit-option-card.is-active .outfit-option-title {
+  color: #111111 !important;
 }
 
 body.light-mode .item-card-title,
 body.light-mode .product-title,
 body.light-mode .pinterest-card-title,
 body.light-mode .outfit-option-title,
-body.light-mode h1, body.light-mode h2, body.light-mode h3 {
+body.light-mode main > section:not(:first-child) h1,
+body.light-mode main > section:not(:first-child) h2,
+body.light-mode main > section:not(:first-child) h3 {
   color: #111111 !important;
 }
 
@@ -688,13 +815,21 @@ body.light-mode .secondary-action {
 body.light-mode #globalSearch {
   border-color: rgba(0,0,0,0.2) !important;
   background-color: rgba(255,255,255,0.6) !important;
-  color: #000000 !important;
+  color: transparent !important;
   font-weight: bold;
 }
 
 body.light-mode #globalSearch::placeholder {
-  color: #000000 !important;
+  color: transparent !important;
   font-weight: bold;
+}
+
+body.light-mode #globalSearch:focus {
+  color: #000000 !important;
+}
+
+body.light-mode #globalSearch:focus::placeholder {
+  color: rgba(0, 0, 0, 0.55) !important;
 }
 
 body:not(.light-mode) #globalSearch {
@@ -702,14 +837,41 @@ body:not(.light-mode) #globalSearch {
 }
 
 body:not(.light-mode) #globalSearch::placeholder {
-  color: #ffffff !important;
+  color: transparent !important;
   font-weight: bold;
+}
+
+body:not(.light-mode) #globalSearch:focus::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 body.light-mode #themeToggle {
   border-color: rgba(0,0,0,0.1) !important;
   background-color: rgba(255,255,255,0.6) !important;
   color: #111111 !important;
+}
+
+body.light-mode .hero-primary-cta {
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+
+body.light-mode .hero-copy,
+body.light-mode .hero-copy p,
+body.light-mode .hero-copy h1,
+body.light-mode .hero-copy a:not(.hero-primary-cta) {
+  color: #ffffff !important;
+}
+
+body.light-mode .editor-note-card,
+body.light-mode .editor-note-card p,
+body.light-mode .editor-note-card span {
+  color: #ffffff !important;
+}
+
+body.light-mode .editor-note-card {
+  background: rgba(17, 17, 17, 0.74) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Base states for dynamic SVGs */

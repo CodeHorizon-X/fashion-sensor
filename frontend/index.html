@@ -50,10 +50,10 @@
           <button type="button" class="nav-tab transition hover:text-white" data-section-target="contact">Contact</button>
         </nav>
 
-        <div class="flex items-center gap-3 relative">
+        <div class="header-actions flex items-center gap-3">
           <!-- Absolute Search Bar Container -->
-          <div class="absolute right-28 top-1/2 -translate-y-1/2 flex items-center justify-end z-10 w-full max-w-[200px] pointer-events-none group">
-            <div class="relative pointer-events-auto w-full flex items-center justify-end">
+          <div class="search-shell relative flex items-center justify-end">
+            <div class="relative w-full flex items-center justify-end">
               <svg viewBox="0 0 24 24" class="absolute right-3 h-4 w-4 text-white z-10 transition-opacity peer-focus:text-white/50" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                 <circle cx="11" cy="11" r="7"></circle>
                 <path d="m20 20-3.5-3.5"></path>
@@ -99,8 +99,8 @@
       <section class="relative overflow-hidden">
         <div class="hero-image absolute inset-0"></div>
         <div class="hero-overlay absolute inset-0"></div>
-        <div class="relative mx-auto grid min-h-[80vh] max-w-7xl items-end px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-24">
-          <div class="max-w-2xl">
+        <div class="relative mx-auto grid min-h-[80vh] max-w-7xl items-end gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)] lg:px-8 lg:py-24">
+          <div class="hero-copy max-w-2xl">
             <p class="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">Future of fashion styling</p>
             <h1 class="font-display text-5xl leading-none text-white sm:text-6xl lg:text-8xl">
               AI Powered Outfit Recommendations
@@ -111,7 +111,7 @@
             <div class="mt-8 flex flex-col gap-4 sm:flex-row">
               <a
                 href="#ai-outfit"
-                class="inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-bold text-white transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
+                class="hero-primary-cta inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-bold text-black transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
               >
                 Try Now
               </a>
@@ -124,8 +124,8 @@
             </div>
           </div>
 
-          <div class="mt-10 lg:mt-0 lg:justify-self-end">
-            <div class="rounded-[2rem] border border-white/20 bg-white/10 p-6 text-white shadow-luxe backdrop-blur-md">
+          <div class="editor-note-wrap mt-10 lg:mt-0 lg:justify-self-end">
+            <div class="editor-note-card rounded-[2rem] border border-white/20 bg-white/10 p-6 text-white shadow-luxe backdrop-blur-md">
               <p class="text-xs font-semibold uppercase tracking-[0.25em] text-white/65">Editor’s Note</p>
               <p class="mt-4 text-2xl font-medium leading-tight">A luxury retail layout, adapted for your AI outfit workflow.</p>
               <div class="mt-6 grid grid-cols-2 gap-4 text-sm text-white/80">
