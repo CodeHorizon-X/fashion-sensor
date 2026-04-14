@@ -1,4 +1,4 @@
-
+<img width="1785" height="906" alt="Screenshot 2026-04-14 at 3 50 23 PM" src="https://github.com/user-attachments/assets/167dd747-fec0-4367-b83b-e718865703c0" />
 
 
 # 👗 Fashion Sensor AI
@@ -65,8 +65,7 @@ Fashion sensor/
 
 ## 📸 Screenshots
 
-| Home Screen | Suggestion Results |
-|<img width="1792" height="926" alt="Screenshot 2026-04-12 at 1 55 50 PM" src="https://github.com/user-attachments/assets/81974c8d-657b-4c26-9208-0b1850ee35eb" />
+| Home Screen | Suggestion Results |<img width="1785" height="906" alt="Screenshot 2026-04-14 at 3 50 23 PM" src="https://github.com/user-attachments/assets/2051fee0-40e5-4bb8-8458-bec2f7b36be4" />
 | <img width="1791" height="1035" alt="Screenshot 2026-04-12 at 1 56 08 PM" src="https://github.com/user-attachments/assets/61931f0e-d6ba-48b9-881a-69345e66e1de" />
 
 | <img width="1792" height="931" alt="Screenshot 2026-04-12 at 1 56 26 PM" src="https://github.com/user-attachments/assets/1ca3f2a3-b532-4c8a-85e2-314029d80d7d" />
