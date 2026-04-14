@@ -1,6 +1,3 @@
-<img width="1785" height="906" alt="Screenshot 2026-04-14 at 3 50 23 PM" src="https://github.com/user-attachments/assets/167dd747-fec0-4367-b83b-e718865703c0" />
-
-
 # 👗 Fashion Sensor AI
 
 An AI-powered outfit recommendation web app that suggests stylish outfits based on user inputs and wardrobe images.
