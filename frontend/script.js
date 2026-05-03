@@ -28,9 +28,14 @@ const rethinkOutfitButton = document.getElementById("rethinkOutfitButton");
 const globalSearch = document.getElementById("globalSearch");
 const themeToggle = document.getElementById("themeToggle");
 const themeIcon = document.getElementById("themeIcon");
+const agentReasoning = document.getElementById("agent-reasoning");
+const agentReasoningSection = document.getElementById("agent-reasoning-section");
 const API_BASE_URL = "http://localhost:8081";
 const API_URL = `${API_BASE_URL}/api/suggest`;
+const AGENTIC_API_URL = `${API_BASE_URL}/api/agentic-suggest`;
 let previewUrl = null;
+// Global session memory — shared with the Gemini agent so suggestions aren't repeated.
+let sessionHistory = [];
 
 const uiState = {
   section: "home",
@@ -39,6 +44,7 @@ const uiState = {
   resultSet: null,
   activeOutfitIndex: 0,
   formPayload: null,
+  sessionHistory, // Points to the same array as the global — keep in sync via mutations
 };
 
 const exploreCards = [
@@ -66,7 +72,7 @@ initialize();
 
 function initialize() {
   renderExploreGrid();
-  renderResultSet(buildDefaultResultSet());
+  // Do not pre-render fake outfits — the outfit cards start empty until Gemini responds
   bindSectionNavigation();
   bindFilters();
   bindFormSync();
@@ -182,43 +188,126 @@ async function handleSubmit(event) {
   // Sync current UI state explicitly to formData
   formData.set("audience", uiState.audience);
   formData.set("style", uiState.style);
-  uiState.formPayload = new FormData(formData);
+  uiState.formPayload = formData;
 
   setLoadingState(true);
   setStatus("Creating your AI styling board...", "success");
   setActiveSection("results");
 
-  // Add skeleton loaders to result panels
+  // Show skeleton loaders
   outfitCards.innerHTML = '<div class="skeleton" style="height: 120px; border-radius: 1.5rem; width: 100%;"></div>'.repeat(3);
   itemsList.innerHTML = '<div class="skeleton" style="height: 80px; border-radius: 1.4rem; width: 100%;"></div>'.repeat(4);
 
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: formData,
-    });
+  // Hide reasoning panel while loading
+  if (agentReasoningSection) agentReasoningSection.classList.add("hidden");
 
-    const json = await response.json();
-    if (!response.ok) {
-      throw new Error(json.error || `Server error (${response.status})`);
+  try {
+    // Log session history so deduplication can be verified in the browser console
+    console.log("[Fashion Sensor] Sending sessionHistory to Gemini blacklist:", [...sessionHistory]);
+
+    // Run standard suggest (image) + agentic suggest (Gemini) in parallel
+    const [response, agenticResponse] = await Promise.allSettled([
+      fetch(API_URL, { method: "POST", body: formData }),
+      fetch(AGENTIC_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gender: document.getElementById("audience")?.value || uiState.audience,
+          purpose: document.getElementById("purpose")?.value || "casual",
+          styleVibe: document.getElementById("style")?.value || uiState.style,
+          location: document.getElementById("location")?.value?.trim() || "",
+          notes: document.getElementById("notes")?.value?.trim() || "",
+          history: [...sessionHistory],
+        }),
+      }),
+    ]);
+
+    // ── Standard suggest (image analysis via OpenAI) ──────────────────────────
+    // Only used when a photo is uploaded. Failure here is expected with no OpenAI key.
+    if (response.status === "fulfilled" && response.value.ok) {
+      const json = await response.value.json();
+      uiState.resultSet = normalizeResultSet(json, formData);
+      const newOutfits = uiState.resultSet.outfits || [];
+      newOutfits.forEach(outfit => sessionHistory.push(outfit));
+      if (sessionHistory.length > 9) sessionHistory.splice(0, sessionHistory.length - 9);
+    } else {
+      const errText = response.status === "fulfilled"
+        ? await response.value.json().catch(() => ({}))
+        : { error: response.reason?.message };
+      console.warn("[Fashion Sensor] /api/suggest failed (expected if no OpenAI key or no photo):", errText);
+      // Do NOT seed fake data — Gemini (agentic) will supply the outfits below
+      uiState.resultSet = null;
     }
 
-    uiState.resultSet = normalizeResultSet(json, formData);
-    uiState.activeOutfitIndex = 0;
-    renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(uiState.resultSet.pinterestQuery);
-    setStatus("Outfit options generated successfully.", "success");
-    document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // ── Agentic suggest (Gemini — source of truth for outfit text) ────────────
+    if (agenticResponse.status === "fulfilled" && agenticResponse.value.ok) {
+      const agenticData = await agenticResponse.value.json();
+
+      if (Array.isArray(agenticData.options) && agenticData.options.length > 0) {
+        // Build the result set from Gemini's output, merging with any image-analysis items
+        const style = document.getElementById("style")?.value || uiState.style;
+        const audience = document.getElementById("audience")?.value || uiState.audience;
+        uiState.resultSet = {
+          audience,
+          style: style === "all" ? "casual" : style,
+          outfits: agenticData.options,
+          outfit: agenticData.options[0],
+          items: uiState.resultSet?.items?.length ? uiState.resultSet.items : [],
+          amazonLinks: uiState.resultSet?.amazonLinks || {},
+          pinterestQuery: buildPinterestQueryFromState(style === "all" ? "casual" : style, audience),
+          source: "gemini-agentic",
+        };
+        uiState.activeOutfitIndex = 0;
+
+        // Render outfits — ONLY here, ONLY on success, NEVER with fake data
+        renderResultSet(deriveFilteredResultSet());
+
+        // Auto-scroll to the AI Styling Board — only on successful Gemini response
+        document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+        loadPinterestImages(uiState.resultSet.pinterestQuery);
+        setStatus("AI outfit suggestions ready.", "success");
+
+        // Show agent reasoning panel
+        if (agenticData.reasoning && agentReasoning && agentReasoningSection) {
+          agentReasoning.textContent = agenticData.reasoning;
+          agentReasoningSection.classList.remove("hidden");
+        }
+
+        // Append Gemini options to sessionHistory (deduplication blacklist)
+        agenticData.options.forEach(option => {
+          if (option && !sessionHistory.includes(option)) {
+            sessionHistory.push(option);
+          }
+        });
+        if (sessionHistory.length > 15) sessionHistory.splice(0, sessionHistory.length - 15);
+
+      } else {
+        // Gemini responded but returned no options
+        console.error("Backend Error:", "Gemini returned a response but 'options' array was empty.");
+        outfitCards.innerHTML = '<p style="color: #ff6b6b; padding: 1rem;">Error: The AI stylist returned no outfit options. Please try again.</p>';
+        setStatus("Error: AI stylist returned no suggestions.", "error");
+      }
+
+    } else {
+      // Gemini failed — show a real error, never fake data
+      const agenticErr = agenticResponse.status === "fulfilled"
+        ? await agenticResponse.value.json().catch(() => ({}))
+        : { error: agenticResponse.reason?.message || "Network error" };
+      console.error("Backend Error:", agenticErr);
+      outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${agenticErr.error || "Please check your Gemini API key and try again."}</p>`;
+      setStatus("Error: Could not connect to AI stylist.", "error");
+    }
+
   } catch (error) {
-    uiState.resultSet = buildDefaultResultSet();
-    uiState.activeOutfitIndex = 0;
-    renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(uiState.resultSet.pinterestQuery);
+    console.error("Backend Error:", error);
+    outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${error.message}</p>`;
     setStatus(error.message || "Something went wrong while contacting the server.", "error");
   } finally {
     setLoadingState(false);
   }
 }
+
 
 async function handleRethinkOutfit() {
   const activeSet = deriveFilteredResultSet();
@@ -235,7 +324,7 @@ async function handleRethinkOutfit() {
     try {
       const response = await fetch(API_URL, {
         method: "POST",
-        body: new FormData(uiState.formPayload),
+        body: uiState.formPayload,
       });
       const json = await response.json();
       if (!response.ok) {
@@ -575,78 +664,32 @@ function buildDefaultResultSet() {
   return {
     audience,
     style,
-    items: buildDefaultItems(style, audience),
-    outfits: buildDefaultOutfits(style, audience),
-    amazonLinks: normalizeAmazonLinks({}, buildDefaultItems(style, audience), audience),
+    items: [],
+    outfits: [],
+    amazonLinks: {},
     pinterestQuery: buildPinterestQueryFromState(style, audience),
-    source: "form-fallback",
+    source: "pending",
   };
 }
 
 function buildDefaultItems(style, audience) {
-  const catalog = {
-    men: {
-      casual: ["white shirt", "blue jeans", "clean sneakers", "lightweight overshirt", "minimal watch"],
-      formal: ["oxford shirt", "tailored trousers", "derby shoes", "navy blazer", "leather belt"],
-      genz: ["boxy tee", "cargo pants", "retro sneakers", "crossbody bag", "silver chain"],
-      minimal: ["fine knit tee", "straight trousers", "leather sneakers", "overshirt", "clean watch"],
-      athleisure: ["performance tee", "track pants", "running shoes", "zip jacket", "sport watch"],
-    },
-    women: {
-      casual: ["neutral top", "blue jeans", "white sneakers", "cropped cardigan", "sleek tote"],
-      formal: ["tailored blazer", "straight trousers", "pointed heels", "silk shell top", "structured tote"],
-      genz: ["cropped graphic tee", "wide-leg jeans", "platform sneakers", "mini shoulder bag", "layered rings"],
-      minimal: ["ribbed knit top", "cream trousers", "loafers", "soft blazer", "gold hoops"],
-      athleisure: ["performance tee", "leggings", "running shoes", "light jacket", "sport tote"],
-    },
-    kids: {
-      casual: ["graphic sweatshirt", "soft denim", "play sneakers", "light cap", "mini backpack"],
-      formal: ["neat shirt", "tailored chinos", "polished sneakers", "soft cardigan", "dress watch"],
-      genz: ["hoodie", "joggers", "chunky trainers", "crossbody pouch", "beanie"],
-      minimal: ["solid tee", "easy trousers", "slip-on shoes", "overshirt", "small backpack"],
-      athleisure: ["sport tee", "track pants", "running shoes", "zip hoodie", "duffle bag"],
-    },
-  };
-
-  return catalog[audience]?.[style] || catalog[audience]?.casual || catalog.men.casual;
+  // No hardcoded fallback data — only the AI can provide real clothing items.
+  return [];
 }
 
 function buildDefaultOutfits(style, audience) {
-  const lookbook = {
-    men: {
-      casual: ["white shirt + blue jeans + sneakers", "black t-shirt + cargo pants + sneakers", "hoodie + joggers + trainers"],
-      formal: ["oxford shirt + tailored trousers + derby shoes", "fine knit polo + pleated pants + loafers", "navy blazer + chinos + leather sneakers"],
-      genz: ["boxy tee + baggy jeans + chunky sneakers", "graphic hoodie + cargo pants + retro trainers", "layered tee + relaxed denim + skate shoes"],
-      minimal: ["fine knit tee + straight trousers + leather sneakers", "overshirt + tapered denim + loafers", "cream shirt + black trousers + court sneakers"],
-      athleisure: ["performance jacket + track pants + running shoes", "dry-fit tee + joggers + knit trainers", "zip hoodie + tech pants + lifestyle sneakers"],
-    },
-    women: {
-      casual: ["neutral top + blue jeans + white sneakers", "cropped cardigan + midi skirt + sleek flats", "ribbed tank + relaxed denim + loafers"],
-      formal: ["tailored blazer + straight trousers + pointed heels", "silk blouse + tapered pants + slingback pumps", "belted co-ord set + loafers + structured tote"],
-      genz: ["cropped graphic tee + wide-leg jeans + platform sneakers", "baby tee + parachute pants + chunky sneakers", "oversized shirt + mini skirt + high-top sneakers"],
-      minimal: ["ribbed knit top + cream trousers + loafers", "soft blazer + knit dress + ankle boots", "monochrome co-ord + sleek sneakers + tote"],
-      athleisure: ["performance tee + leggings + trainers", "zip jacket + flare pants + sneakers", "sport bra + cargo joggers + running shoes"],
-    },
-    kids: {
-      casual: ["graphic sweatshirt + soft denim + play sneakers", "striped tee + cargo shorts + sporty sandals", "hoodie + joggers + colorful trainers"],
-      formal: ["neat shirt + chinos + polished sneakers", "soft cardigan + trousers + loafers", "mini blazer + denim + slip-ons"],
-      genz: ["oversized hoodie + joggers + chunky trainers", "graphic tee + cargo pants + bright sneakers", "check shirt + relaxed jeans + skate shoes"],
-      minimal: ["solid tee + easy trousers + slip-on shoes", "soft knit + denim + clean sneakers", "overshirt + joggers + low-top trainers"],
-      athleisure: ["sport tee + track pants + running shoes", "zip hoodie + shorts + trainers", "performance top + joggers + sporty sandals"],
-    },
-  };
-
-  return lookbook[audience]?.[style] || lookbook[audience]?.casual || lookbook.men.casual;
+  // No hardcoded fallback data — only Gemini can provide real outfit suggestions.
+  return [];
 }
 
 function ensureMinimumItems(items, style, audience) {
-  const merged = [...new Set([...items, ...buildDefaultItems(style, audience)])];
-  return merged.slice(0, 5);
+  // Never pad with fake data — only use what the AI returned
+  return sanitizeStringArray(items).slice(0, 5);
 }
 
 function ensureMinimumOutfits(outfits, style, audience) {
-  const merged = [...new Set([...outfits, ...buildDefaultOutfits(style, audience)])];
-  return merged.slice(0, 5);
+  // Never pad with fake data — only use what Gemini returned
+  return sanitizeStringArray(outfits).slice(0, 5);
 }
 
 function normalizeAmazonLinks(links, items, audience) {

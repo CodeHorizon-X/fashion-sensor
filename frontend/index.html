@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,8 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap"
-    rel="stylesheet"
-  />
+    rel="stylesheet" />
   <script>
     window.tailwind = {
       config: {
@@ -36,56 +36,56 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="bg-[#050505] text-ink antialiased">
+
+<body class="antialiased">
   <div class="min-h-screen">
-    <header class="sticky top-0 z-50 border-b border-white/5 bg-[#050505]/90 backdrop-blur-xl">
+    <header class="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <a href="#home" class="text-lg font-semibold tracking-[0.18em] text-ink uppercase">Fashion Sensor</a>
 
         <nav class="hidden items-center gap-4 text-sm font-medium text-white/70 md:flex">
-          <button type="button" class="nav-tab is-active transition hover:text-white" data-section-target="home">Home</button>
-          <button type="button" class="nav-tab transition hover:text-white" data-section-target="explore">Explore</button>
-          <button type="button" class="nav-tab transition hover:text-white" data-section-target="ai-outfit">AI Outfit</button>
-          <button type="button" class="nav-tab transition hover:text-white" data-section-target="wardrobe">Wardrobe</button>
-          <button type="button" class="nav-tab transition hover:text-white" data-section-target="contact">Contact</button>
+          <button type="button" class="nav-tab is-active transition hover:text-white"
+            data-section-target="home">Home</button>
+          <button type="button" class="nav-tab transition hover:text-white"
+            data-section-target="explore">Explore</button>
+          <button type="button" class="nav-tab transition hover:text-white" data-section-target="ai-outfit">AI
+            Outfit</button>
+          <button type="button" class="nav-tab transition hover:text-white"
+            data-section-target="wardrobe">Wardrobe</button>
+          <button type="button" class="nav-tab transition hover:text-white"
+            data-section-target="contact">Contact</button>
         </nav>
 
         <div class="header-actions flex items-center gap-3">
           <!-- Absolute Search Bar Container -->
           <div class="search-shell relative flex items-center justify-end">
             <div class="relative w-full flex items-center justify-end">
-              <svg viewBox="0 0 24 24" class="absolute right-3 h-4 w-4 text-white z-10 transition-opacity peer-focus:text-white/50" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
+              <svg viewBox="0 0 24 24"
+                class="absolute right-3 h-4 w-4 text-white z-10 transition-opacity peer-focus:text-white/50" fill="none"
+                stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                 <circle cx="11" cy="11" r="7"></circle>
                 <path d="m20 20-3.5-3.5"></path>
               </svg>
-              <input 
-                type="text" 
-                id="globalSearch" 
-                placeholder="Search..." 
-                class="peer h-10 w-10 cursor-pointer rounded-full border border-transparent bg-white/10 text-transparent transition-all duration-300 placeholder-transparent focus:w-64 focus:cursor-text focus:border-white/20 focus:bg-white/10 focus:pl-4 focus:pr-9 focus:text-white focus:placeholder-white/50 focus:outline-none focus:backdrop-blur-md"
-              />
+              <input type="text" id="globalSearch" placeholder="Search..."
+                class="peer h-10 w-10 cursor-pointer rounded-full border border-transparent bg-white/10 text-transparent transition-all duration-300 placeholder-transparent focus:w-64 focus:cursor-text focus:border-white/20 focus:bg-white/10 focus:pl-4 focus:pr-9 focus:text-white focus:placeholder-white/50 focus:outline-none focus:backdrop-blur-md" />
             </div>
           </div>
-          
+
           <!-- Theme Toggle Button -->
-          <button
-            type="button"
-            id="themeToggle"
+          <button type="button" id="themeToggle"
             class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-            aria-label="Toggle Theme"
-          >
+            aria-label="Toggle Theme">
             <!-- Sun Icon (Hidden manually or via CSS based on state, but let's keep one generic icon for now, script will update) -->
-            <svg id="themeIcon" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg id="themeIcon" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor"
+              stroke-width="1.8">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
           </button>
-          
+
           <!-- Profile Button -->
-          <button
-            type="button"
+          <button type="button"
             class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-            aria-label="Profile"
-          >
+            aria-label="Profile">
             <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="8" r="3.5"></circle>
               <path d="M5 19c1.8-3 4.2-4.5 7-4.5s5.2 1.5 7 4.5"></path>
@@ -99,35 +99,35 @@
       <section class="relative overflow-hidden">
         <div class="hero-image absolute inset-0"></div>
         <div class="hero-overlay absolute inset-0"></div>
-        <div class="relative mx-auto grid min-h-[80vh] max-w-7xl items-end gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)] lg:px-8 lg:py-24">
+        <div
+          class="relative mx-auto grid min-h-[80vh] max-w-7xl items-end gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)] lg:px-8 lg:py-24">
           <div class="hero-copy max-w-2xl">
             <p class="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">Future of fashion styling</p>
             <h1 class="font-display text-5xl leading-none text-white sm:text-6xl lg:text-8xl">
               AI Powered Outfit Recommendations
             </h1>
             <p class="mt-6 max-w-xl text-base leading-7 text-white/80 sm:text-lg">
-              Your wardrobe. Your style. Powered by AI. Discover elevated looks with a storefront-inspired experience built for everyday styling.
+              Your wardrobe. Your style. Powered by AI. Discover elevated looks with a storefront-inspired experience
+              built for everyday styling.
             </p>
             <div class="mt-8 flex flex-col gap-4 sm:flex-row">
-              <a
-                href="#ai-outfit"
-                class="hero-primary-cta inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-bold text-black transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
-              >
+              <a href="#ai-outfit"
+                class="hero-primary-cta inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-bold text-black transition duration-300 hover:-translate-y-1 hover:shadow-2xl">
                 Try Now
               </a>
-              <a
-                href="#explore"
-                class="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-8 py-4 text-sm font-bold text-white backdrop-blur transition duration-300 hover:border-white/60 hover:bg-white/20"
-              >
+              <a href="#explore"
+                class="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-8 py-4 text-sm font-bold text-white backdrop-blur transition duration-300 hover:border-white/60 hover:bg-white/20">
                 Explore Collections
               </a>
             </div>
           </div>
 
           <div class="editor-note-wrap mt-10 lg:mt-0 lg:justify-self-end">
-            <div class="editor-note-card rounded-[2rem] border border-white/20 bg-white/10 p-6 text-white shadow-luxe backdrop-blur-md">
+            <div
+              class="editor-note-card rounded-[2rem] border border-white/20 bg-white/10 p-6 text-white shadow-luxe backdrop-blur-md">
               <p class="text-xs font-semibold uppercase tracking-[0.25em] text-white/65">Editor’s Note</p>
-              <p class="mt-4 text-2xl font-medium leading-tight">A luxury retail layout, adapted for your AI outfit workflow.</p>
+              <p class="mt-4 text-2xl font-medium leading-tight">A luxury retail layout, adapted for your AI outfit
+                workflow.</p>
               <div class="mt-6 grid grid-cols-2 gap-4 text-sm text-white/80">
                 <div class="rounded-2xl bg-white/10 p-4">
                   <p class="text-xs uppercase tracking-[0.2em] text-white/55">Looks</p>
@@ -158,18 +158,26 @@
           <div class="rounded-[2rem] border border-white/5 bg-white/5 p-6 shadow-luxe backdrop-blur-xl">
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-white/40">Audience</p>
             <div class="mt-4 flex flex-wrap gap-3">
-              <button type="button" class="category-tab is-active" data-filter-group="audience" data-filter-value="men">Men</button>
-              <button type="button" class="category-tab" data-filter-group="audience" data-filter-value="women">Women</button>
-              <button type="button" class="category-tab" data-filter-group="audience" data-filter-value="kids">Kids</button>
+              <button type="button" class="category-tab is-active" data-filter-group="audience"
+                data-filter-value="men">Men</button>
+              <button type="button" class="category-tab" data-filter-group="audience"
+                data-filter-value="women">Women</button>
+              <button type="button" class="category-tab" data-filter-group="audience"
+                data-filter-value="kids">Kids</button>
             </div>
 
             <p class="mt-6 text-xs font-semibold uppercase tracking-[0.24em] text-white/40">Mood</p>
             <div class="mt-4 flex flex-wrap gap-3">
-              <button type="button" class="category-tab is-active" data-filter-group="style" data-filter-value="all">All</button>
-              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="genz">Gen Z</button>
-              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="casual">Casual</button>
-              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="formal">Formal</button>
-              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="minimal">Minimal</button>
+              <button type="button" class="category-tab is-active" data-filter-group="style"
+                data-filter-value="all">All</button>
+              <button type="button" class="category-tab" data-filter-group="style" data-filter-value="genz">Gen
+                Z</button>
+              <button type="button" class="category-tab" data-filter-group="style"
+                data-filter-value="casual">Casual</button>
+              <button type="button" class="category-tab" data-filter-group="style"
+                data-filter-value="formal">Formal</button>
+              <button type="button" class="category-tab" data-filter-group="style"
+                data-filter-value="minimal">Minimal</button>
             </div>
 
             <div class="mt-8 rounded-[1.5rem] bg-white/5 p-5">
@@ -181,13 +189,15 @@
             </div>
           </div>
 
-          <div id="exploreGrid" ></div>
+          <div id="exploreGrid"></div>
         </div>
       </section>
 
-      <section id="ai-outfit" class="section-panel mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8" data-section="ai-outfit">
+      <section id="ai-outfit" class="section-panel mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
+        data-section="ai-outfit">
         <div class="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <section class="rounded-[2rem] border border-white/5 bg-white/10 p-6 shadow-luxe backdrop-blur-xl backdrop-blur sm:p-8">
+          <section
+            class="rounded-[2rem] border border-white/5 bg-white/10 p-6 shadow-luxe backdrop-blur-xl backdrop-blur sm:p-8">
             <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.3em] text-white/45">AI outfit</p>
@@ -200,99 +210,98 @@
 
             <form id="fashionForm" class="grid gap-5">
 
-  <div class="grid gap-5 md:grid-cols-2">
+              <div class="grid gap-5 md:grid-cols-2">
 
-    <label class="field-shell">
-      <span class="field-label">Date & Time</span>
-      <input type="datetime-local" id="date" name="date" required class="field-input" />
-    </label>
+                <label class="field-shell">
+                  <span class="field-label">Date & Time</span>
+                  <input type="datetime-local" id="date" name="date" required class="field-input" />
+                </label>
 
-    <label class="field-shell">
-      <span class="field-label">Location</span>
-      <input type="text" id="location" name="location" placeholder="e.g. Mumbai, indoor mall" class="field-input" />
-    </label>
+                <label class="field-shell">
+                  <span class="field-label">Location</span>
+                  <input type="text" id="location" name="location" placeholder="e.g. Mumbai, indoor mall"
+                    class="field-input" />
+                </label>
 
-    <label class="field-shell">
-      <span class="field-label">Going with</span>
-      <input type="text" id="withWhom" name="withWhom" placeholder="e.g. family, friends, date" class="field-input" />
-    </label>
+                <label class="field-shell">
+                  <span class="field-label">Going with</span>
+                  <input type="text" id="withWhom" name="withWhom" placeholder="e.g. family, friends, date"
+                    class="field-input" />
+                </label>
 
-    <label class="field-shell">
-      <span class="field-label">Purpose</span>
-      <select id="purpose" name="purpose" class="field-input">
-        <option value="casual">Casual</option>
-        <option value="formal">Formal / Work</option>
-        <option value="party">Party / Night Out</option>
-        <option value="travel">Travel</option>
-        <option value="wedding">Wedding / Ceremony</option>
-      </select>
-    </label>
+                <label class="field-shell">
+                  <span class="field-label">Purpose</span>
+                  <select id="purpose" name="purpose" class="field-input">
+                    <option value="casual">Casual</option>
+                    <option value="formal">Formal / Work</option>
+                    <option value="party">Party / Night Out</option>
+                    <option value="travel">Travel</option>
+                    <option value="wedding">Wedding / Ceremony</option>
+                  </select>
+                </label>
 
-    <label class="field-shell">
-      <span class="field-label">Style vibe</span>
-      <select id="style" name="style" class="field-input">
-        <option value="casual">Casual</option>
-        <option value="genz">Gen Z / Trendy</option>
-        <option value="minimal">Minimal / Clean</option>
-        <option value="formal">Formal</option>
-        <option value="athleisure">Athleisure</option>
-      </select>
-    </label>
+                <label class="field-shell">
+                  <span class="field-label">Style vibe</span>
+                  <select id="style" name="style" class="field-input">
+                    <option value="casual">Casual</option>
+                    <option value="genz">Gen Z / Trendy</option>
+                    <option value="minimal">Minimal / Clean</option>
+                    <option value="formal">Formal</option>
+                    <option value="athleisure">Athleisure</option>
+                  </select>
+                </label>
 
-    <label class="field-shell">
-      <span class="field-label">For</span>
-      <select id="audience" name="audience" class="field-input">
-        <option value="men">Men</option>
-        <option value="women">Women</option>
-        <option value="kids">Kids</option>
-      </select>
-    </label>
+                <label class="field-shell">
+                  <span class="field-label">For</span>
+                  <select id="audience" name="audience" class="field-input">
+                    <option value="men">Men</option>
+                    <option value="women">Women</option>
+                    <option value="kids">Kids</option>
+                  </select>
+                </label>
 
-    <label class="field-shell md:col-span-2">
-      <span class="field-label">Notes</span>
-      <input
-        type="text"
-        id="notes"
-        name="notes"
-        placeholder="e.g. avoid red, prefer neutrals"
-        class="field-input"
-      />
-    </label>
+                <label class="field-shell md:col-span-2">
+                  <span class="field-label">Notes</span>
+                  <input type="text" id="notes" name="notes" placeholder="e.g. avoid red, prefer neutrals"
+                    class="field-input" />
+                </label>
 
-  </div>
+              </div>
 
-  <!-- STATUS + BUTTON -->
-  <div class="mt-2 flex flex-col gap-4 border-t border-white/5 pt-6">
+              <!-- STATUS + BUTTON -->
+              <div class="mt-2 flex flex-col gap-4 border-t border-white/5 pt-6">
 
-    <p id="formStatus" class="min-h-6 text-sm text-white/55" aria-live="polite"></p>
+                <p id="formStatus" class="min-h-6 text-sm text-white/55" aria-live="polite"></p>
 
-    <button 
-      id="submitButton"
-      type="submit"
-      class="w-full bg-white text-black py-3 rounded-xl hover:bg-gray-200 transition duration-300 shadow-lg flex items-center justify-center">
-      
-      <span class="button-label font-bold">Get Outfit 🔥</span>
-      
-      <span id="loadingSpinner" class="hidden ml-2">⏳</span>
+                <button id="submitButton" type="submit"
+                  class="w-full bg-white text-black py-3 rounded-xl hover:bg-gray-200 transition duration-300 shadow-lg flex items-center justify-center">
 
-    </button>
+                  <span class="button-label font-bold">Get Outfit 🔥</span>
 
-  </div>
+                  <span id="loadingSpinner" class="hidden ml-2">⏳</span>
 
-</form>
+                </button>
+
+              </div>
+
+            </form>
           </section>
 
-          <aside id="wardrobe" class="section-panel rounded-[2rem] border border-white/5 bg-white/5 p-6 shadow-luxe backdrop-blur-xl sm:p-8" data-section="wardrobe">
+          <aside id="wardrobe"
+            class="section-panel rounded-[2rem] border border-white/5 bg-white/5 p-6 shadow-luxe backdrop-blur-xl sm:p-8"
+            data-section="wardrobe">
             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-white/45">Wardrobe upload</p>
             <h3 class="mt-3 font-display text-4xl text-ink">Preview &amp; Tips</h3>
             <p class="mt-4 max-w-md text-sm leading-6 text-white/60">
               Add your wardrobe image here. We preview it instantly and use it alongside your existing inputs.
             </p>
 
-            <label for="photo" class="upload-panel mt-8 block cursor-pointer rounded-[1.75rem] border border-dashed border-white/15 bg-white/10 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+            <label for="photo"
+              class="upload-panel mt-8 block cursor-pointer rounded-[1.75rem] border border-dashed border-white/15 bg-white/10 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-xl">
               <input type="file" id="photo" name="photo" accept="image/*" class="sr-only" form="fashionForm" />
               <div class="flex items-center gap-4">
-                <span class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-2xl text-white">+</span>
+                <span
+                  class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-2xl text-white">+</span>
                 <div>
                   <p class="text-base font-semibold text-ink">Upload wardrobe photo</p>
                   <p class="mt-1 text-sm text-white/55">PNG, JPG, or HEIC supported</p>
@@ -300,14 +309,18 @@
               </div>
             </label>
 
-            <div id="previewContainer" class="mt-6 hidden rounded-[1.75rem] bg-white/10 p-4 shadow-lg backdrop-blur-lg border border-white/10" aria-live="polite">
-              <img id="imagePreview" alt="Selected wardrobe preview" class="h-72 w-full rounded-[1.25rem] object-cover" />
+            <div id="previewContainer"
+              class="mt-6 hidden rounded-[1.75rem] bg-white/10 p-4 shadow-lg backdrop-blur-lg border border-white/10"
+              aria-live="polite">
+              <img id="imagePreview" alt="Selected wardrobe preview"
+                class="h-72 w-full rounded-[1.25rem] object-cover" />
               <div class="mt-4 flex items-start justify-between gap-4">
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-[0.24em] text-white/40">Preview ready</p>
                   <p id="fileMeta" class="mt-2 text-sm text-white/60"></p>
                 </div>
-                <span class="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
+                <span
+                  class="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
                   Live
                 </span>
               </div>
@@ -316,15 +329,26 @@
             <div class="mt-6 grid gap-4">
               <article class="rounded-[1.5rem] bg-white/5 p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-white/40">Tip 01</p>
-                <p class="mt-3 text-sm leading-6 text-white/65">Use clear wardrobe photos so colors, fabrics, and layering options are easier to infer.</p>
+                <p class="mt-3 text-sm leading-6 text-white/65">Use clear wardrobe photos so colors, fabrics, and
+                  layering options are easier to infer.</p>
               </article>
               <article class="rounded-[1.5rem] bg-white/5 p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-white/40">Tip 02</p>
-                <p class="mt-3 text-sm leading-6 text-white/65">Add notes for preferred tones or items to avoid to get more refined outfit suggestions.</p>
+                <p class="mt-3 text-sm leading-6 text-white/65">Add notes for preferred tones or items to avoid to get
+                  more refined outfit suggestions.</p>
               </article>
             </div>
           </aside>
         </div>
+      </section>
+
+      <!-- Agent Reasoning Panel (hidden until agentic response arrives) -->
+      <section id="agent-reasoning-section" class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8 hidden">
+        <article class="result-panel agent-reasoning-card">
+          <p class="result-kicker">AI Agent Reasoning</p>
+          <h3 class="mt-3 font-display text-3xl text-ink">Why this outfit?</h3>
+          <p id="agent-reasoning" class="mt-4 text-sm leading-7 text-white/75 agent-reasoning-text"></p>
+        </article>
       </section>
 
       <section id="results" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -355,8 +379,9 @@
               <p id="resultStyle" class="result-style-chip">Style: Casual</p>
               <p id="activeAudienceChip" class="result-audience-chip">Audience: Men</p>
             </div>
-            <p id="resultSource" class="mt-4 text-sm leading-6 text-white/55">Upload an image or use the form to generate a tailored outfit recommendation.</p>
-            <div id="outfitCards" ></div>
+            <p id="resultSource" class="mt-4 text-sm leading-6 text-white/55">Upload an image or use the form to
+              generate a tailored outfit recommendation.</p>
+            <div id="outfitCards"></div>
           </article>
 
           <article class="result-panel">
@@ -365,7 +390,8 @@
                 <p class="result-kicker">Detected items</p>
                 <h3 class="mt-3 font-display text-3xl text-ink">Shopping shortlist</h3>
               </div>
-              <a id="pinterestLink" href="https://in.pinterest.com/search/pins/?q=casual%20men%20outfit" target="_blank" rel="noreferrer" class="shop-link">
+              <a id="pinterestLink" href="https://in.pinterest.com/search/pins/?q=casual%20men%20outfit" target="_blank"
+                rel="noreferrer" class="shop-link">
                 Open Pinterest
               </a>
             </div>
@@ -397,22 +423,28 @@
         <div>
           <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/45">Navigate</p>
           <div class="mt-4 grid gap-2 text-sm text-white/60">
-            <button type="button" class="footer-nav transition hover:text-white text-left" data-section-target="home">Home</button>
-            <button type="button" class="footer-nav transition hover:text-white text-left" data-section-target="explore">Explore</button>
-            <button type="button" class="footer-nav transition hover:text-white text-left" data-section-target="ai-outfit">AI Outfit</button>
+            <button type="button" class="footer-nav transition hover:text-white text-left"
+              data-section-target="home">Home</button>
+            <button type="button" class="footer-nav transition hover:text-white text-left"
+              data-section-target="explore">Explore</button>
+            <button type="button" class="footer-nav transition hover:text-white text-left"
+              data-section-target="ai-outfit">AI Outfit</button>
           </div>
         </div>
         <div>
           <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/45">Collections</p>
           <div class="mt-4 grid gap-2 text-sm text-white/60">
             <a href="#results" class="transition hover:text-white">Suggested Outfits</a>
-            <button type="button" class="footer-nav transition hover:text-white text-left" data-section-target="wardrobe">Wardrobe Upload</button>
-            <button type="button" class="footer-nav transition hover:text-white text-left" data-section-target="contact">Support</button>
+            <button type="button" class="footer-nav transition hover:text-white text-left"
+              data-section-target="wardrobe">Wardrobe Upload</button>
+            <button type="button" class="footer-nav transition hover:text-white text-left"
+              data-section-target="contact">Support</button>
           </div>
         </div>
         <div>
           <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/45">Stay in touch</p>
-          <p class="mt-4 text-sm leading-6 text-white/60">Designed for modern styling workflows with a premium storefront feel.</p>
+          <p class="mt-4 text-sm leading-6 text-white/60">Designed for modern styling workflows with a premium
+            storefront feel.</p>
         </div>
       </div>
     </footer>
@@ -420,4 +452,5 @@
 
   <script src="script.js"></script>
 </body>
+
 </html>

@@ -16,7 +16,7 @@ public class UnsplashProxyService {
 
     public UnsplashProxyService(
             WebClient.Builder webClientBuilder,
-            @Value("${unsplash.api.key}") String unsplashAccessKey
+            @Value("${unsplash.api.key:}") String unsplashAccessKey
     ) {
         this.webClient = webClientBuilder.baseUrl("https://api.unsplash.com").build();
         this.unsplashAccessKey = unsplashAccessKey;
