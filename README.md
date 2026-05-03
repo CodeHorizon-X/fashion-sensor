@@ -11,8 +11,11 @@
 ## 🛠 Instructions for Shaurya
 1. **Switch to this branch**: `git fetch origin` then `git checkout dev-collaboration`.
 2. **Local Environment**: Create a `backend/.env` file.
-3. **Add API Key**: Paste `GEMINI_API_KEY=your_key_here`.
+3. **Add API Key**: Paste `GEMINI_API_KEY=your_key_here`. and unsplash key 
 4. **Current Goal**: Resolve the persistent 404 error by verifying the model string format in `GeminiService.java`.
+|<img width="1792" height="1021" alt="Screenshot 2026-05-03 at 4 22 34 PM" src="https://github.com/user-attachments/assets/e46159ee-0d6d-4f9c-b276-6d678fd3e8fb" />
+|
 
 ---
 *(Existing README content starts below)*
+
