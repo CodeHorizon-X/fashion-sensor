@@ -33,8 +33,9 @@ const agentReasoningSection = document.getElementById("agent-reasoning-section")
 const API_BASE_URL = "http://localhost:8081";
 const API_URL = `${API_BASE_URL}/api/suggest`;
 const AGENTIC_API_URL = `${API_BASE_URL}/api/agentic-suggest`;
+const REQUEST_COOLDOWN_MS = 2000;
 let previewUrl = null;
-// Global session memory — shared with the Gemini agent so suggestions aren't repeated.
+// Global session memory shared with the AI stylist so suggestions are not repeated.
 let sessionHistory = [];
 
 const uiState = {
@@ -44,6 +45,8 @@ const uiState = {
   resultSet: null,
   activeOutfitIndex: 0,
   formPayload: null,
+  isLoading: false,
+  lastRequestFinishedAt: 0,
   sessionHistory, // Points to the same array as the global — keep in sync via mutations
 };
 
@@ -72,7 +75,7 @@ initialize();
 
 function initialize() {
   renderExploreGrid();
-  // Do not pre-render fake outfits — the outfit cards start empty until Gemini responds
+  // Do not pre-render fake outfits; the outfit cards start empty until OpenAI responds.
   bindSectionNavigation();
   bindFilters();
   bindFormSync();
@@ -183,6 +186,11 @@ function handleImagePreview(event) {
 
 async function handleSubmit(event) {
   event.preventDefault();
+
+  if (!canStartAiRequest("outfit request")) {
+    return;
+  }
+
   const formData = new FormData(form);
 
   // Sync current UI state explicitly to formData
@@ -203,48 +211,26 @@ async function handleSubmit(event) {
 
   try {
     // Log session history so deduplication can be verified in the browser console
-    console.log("[Fashion Sensor] Sending sessionHistory to Gemini blacklist:", [...sessionHistory]);
+    console.log("[Fashion Sensor] Sending sessionHistory to OpenAI blacklist:", [...sessionHistory]);
 
-    // Run standard suggest (image) + agentic suggest (Gemini) in parallel
-    const [response, agenticResponse] = await Promise.allSettled([
-      fetch(API_URL, { method: "POST", body: formData }),
-      fetch(AGENTIC_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gender: document.getElementById("audience")?.value || uiState.audience,
-          purpose: document.getElementById("purpose")?.value || "casual",
-          styleVibe: document.getElementById("style")?.value || uiState.style,
-          location: document.getElementById("location")?.value?.trim() || "",
-          notes: document.getElementById("notes")?.value?.trim() || "",
-          history: [...sessionHistory],
-        }),
+    const agenticResponse = await fetch(AGENTIC_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gender: document.getElementById("audience")?.value || uiState.audience,
+        purpose: document.getElementById("purpose")?.value || "casual",
+        styleVibe: document.getElementById("style")?.value || uiState.style,
+        location: document.getElementById("location")?.value?.trim() || "",
+        notes: document.getElementById("notes")?.value?.trim() || "",
+        history: [...sessionHistory],
       }),
-    ]);
+    });
 
-    // ── Standard suggest (image analysis via OpenAI) ──────────────────────────
-    // Only used when a photo is uploaded. Failure here is expected with no OpenAI key.
-    if (response.status === "fulfilled" && response.value.ok) {
-      const json = await response.value.json();
-      uiState.resultSet = normalizeResultSet(json, formData);
-      const newOutfits = uiState.resultSet.outfits || [];
-      newOutfits.forEach(outfit => sessionHistory.push(outfit));
-      if (sessionHistory.length > 9) sessionHistory.splice(0, sessionHistory.length - 9);
-    } else {
-      const errText = response.status === "fulfilled"
-        ? await response.value.json().catch(() => ({}))
-        : { error: response.reason?.message };
-      console.warn("[Fashion Sensor] /api/suggest failed (expected if no OpenAI key or no photo):", errText);
-      // Do NOT seed fake data — Gemini (agentic) will supply the outfits below
-      uiState.resultSet = null;
-    }
-
-    // ── Agentic suggest (Gemini — source of truth for outfit text) ────────────
-    if (agenticResponse.status === "fulfilled" && agenticResponse.value.ok) {
-      const agenticData = await agenticResponse.value.json();
+    // OpenAI is the source of truth for outfit text.
+    if (agenticResponse.ok) {
+      const agenticData = await agenticResponse.json();
 
       if (Array.isArray(agenticData.options) && agenticData.options.length > 0) {
-        // Build the result set from Gemini's output, merging with any image-analysis items
         const style = document.getElementById("style")?.value || uiState.style;
         const audience = document.getElementById("audience")?.value || uiState.audience;
         uiState.resultSet = {
@@ -252,17 +238,15 @@ async function handleSubmit(event) {
           style: style === "all" ? "casual" : style,
           outfits: agenticData.options,
           outfit: agenticData.options[0],
-          items: uiState.resultSet?.items?.length ? uiState.resultSet.items : [],
-          amazonLinks: uiState.resultSet?.amazonLinks || {},
+          items: [],
+          amazonLinks: {},
           pinterestQuery: buildPinterestQueryFromState(style === "all" ? "casual" : style, audience),
-          source: "gemini-agentic",
+          source: "openai",
         };
         uiState.activeOutfitIndex = 0;
 
-        // Render outfits — ONLY here, ONLY on success, NEVER with fake data
         renderResultSet(deriveFilteredResultSet());
 
-        // Auto-scroll to the AI Styling Board — only on successful Gemini response
         document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
         loadPinterestImages(uiState.resultSet.pinterestQuery);
@@ -274,7 +258,7 @@ async function handleSubmit(event) {
           agentReasoningSection.classList.remove("hidden");
         }
 
-        // Append Gemini options to sessionHistory (deduplication blacklist)
+        // Append OpenAI options to sessionHistory (deduplication blacklist)
         agenticData.options.forEach(option => {
           if (option && !sessionHistory.includes(option)) {
             sessionHistory.push(option);
@@ -283,19 +267,15 @@ async function handleSubmit(event) {
         if (sessionHistory.length > 15) sessionHistory.splice(0, sessionHistory.length - 15);
 
       } else {
-        // Gemini responded but returned no options
-        console.error("Backend Error:", "Gemini returned a response but 'options' array was empty.");
-        outfitCards.innerHTML = '<p style="color: #ff6b6b; padding: 1rem;">Error: The AI stylist returned no outfit options. Please try again.</p>';
-        setStatus("Error: AI stylist returned no suggestions.", "error");
+        console.warn("Backend returned no OpenAI options, likely due to rate limiting.");
+        outfitCards.innerHTML = '<p style="color: #ff6b6b; padding: 1rem;">The AI stylist is busy right now. Please wait a moment and try again.</p>';
+        setStatus("AI stylist is rate limited. Please wait a moment.", "error");
       }
 
     } else {
-      // Gemini failed — show a real error, never fake data
-      const agenticErr = agenticResponse.status === "fulfilled"
-        ? await agenticResponse.value.json().catch(() => ({}))
-        : { error: agenticResponse.reason?.message || "Network error" };
+      const agenticErr = await agenticResponse.json().catch(() => ({}));
       console.error("Backend Error:", agenticErr);
-      outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${agenticErr.error || "Please check your Gemini API key and try again."}</p>`;
+      outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${agenticErr.error || "Please check your OpenAI API key and try again."}</p>`;
       setStatus("Error: Could not connect to AI stylist.", "error");
     }
 
@@ -305,11 +285,16 @@ async function handleSubmit(event) {
     setStatus(error.message || "Something went wrong while contacting the server.", "error");
   } finally {
     setLoadingState(false);
+    markRequestFinished();
   }
 }
 
 
 async function handleRethinkOutfit() {
+  if (!canStartAiRequest("rethink request")) {
+    return;
+  }
+
   const activeSet = deriveFilteredResultSet();
   if (uiState.formPayload) {
     const outfits = activeSet.outfits || [];
@@ -341,6 +326,7 @@ async function handleRethinkOutfit() {
       setStatus(error.message || "Unable to fetch a new outfit set right now.", "error");
     } finally {
       setLoadingState(false);
+      markRequestFinished();
     }
     return;
   }
@@ -678,7 +664,7 @@ function buildDefaultItems(style, audience) {
 }
 
 function buildDefaultOutfits(style, audience) {
-  // No hardcoded fallback data — only Gemini can provide real outfit suggestions.
+  // No hardcoded fallback data; only the AI can provide real outfit suggestions.
   return [];
 }
 
@@ -688,7 +674,7 @@ function ensureMinimumItems(items, style, audience) {
 }
 
 function ensureMinimumOutfits(outfits, style, audience) {
-  // Never pad with fake data — only use what Gemini returned
+  // Never pad with fake data; only use what the AI returned.
   return sanitizeStringArray(outfits).slice(0, 5);
 }
 
@@ -732,6 +718,7 @@ function createExploreCardMarkup(card) {
 function getSourceLabel(source) {
   const labels = {
     "ai-image": "Image analyzed with AI vision for outfit-specific suggestions.",
+    "openai": "Generated by OpenAI for this request.",
     "fallback-after-image": "Image upload was received, but a safe fallback outfit set was generated from your inputs.",
     "form-fallback": "No image was required. This outfit set was generated from your selected style, purpose, and audience.",
   };
@@ -763,12 +750,34 @@ function buildItemKey(item) {
 }
 
 function setLoadingState(isLoading) {
+  uiState.isLoading = isLoading;
   submitButton.disabled = isLoading;
   if (rethinkOutfitButton) {
     rethinkOutfitButton.disabled = isLoading;
   }
   loadingSpinner.classList.toggle("hidden", !isLoading);
   buttonLabel.textContent = isLoading ? "Styling..." : "Get Outfit 🔥";
+}
+
+function canStartAiRequest(label) {
+  if (uiState.isLoading) {
+    console.warn(`[Fashion Sensor] Blocked ${label}: request already running.`);
+    return false;
+  }
+
+  const elapsed = Date.now() - uiState.lastRequestFinishedAt;
+  if (elapsed < REQUEST_COOLDOWN_MS) {
+    const waitMs = REQUEST_COOLDOWN_MS - elapsed;
+    console.warn(`[Fashion Sensor] Blocked ${label}: cooldown active for ${waitMs}ms.`);
+    setStatus("Please wait a moment before requesting another outfit.", "error");
+    return false;
+  }
+
+  return true;
+}
+
+function markRequestFinished() {
+  uiState.lastRequestFinishedAt = Date.now();
 }
 
 function setStatus(message, state) {
