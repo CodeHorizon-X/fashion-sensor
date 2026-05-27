@@ -1,1 +1,10 @@
+# Security: Ignore environment variables
+.env
+backend/.env
+frontend/.env
+
+# Build files
+target/
+*.class
+.DS_Storebackend/.env
 .env

@@ -28,9 +28,15 @@ const rethinkOutfitButton = document.getElementById("rethinkOutfitButton");
 const globalSearch = document.getElementById("globalSearch");
 const themeToggle = document.getElementById("themeToggle");
 const themeIcon = document.getElementById("themeIcon");
-
-const API_URL = "http://localhost:8080/api/suggest";
+const agentReasoning = document.getElementById("agent-reasoning");
+const agentReasoningSection = document.getElementById("agent-reasoning-section");
+const API_BASE_URL = "http://localhost:8081";
+const API_URL = `${API_BASE_URL}/api/suggest`;
+const AGENTIC_API_URL = `${API_BASE_URL}/api/agentic-suggest`;
+const REQUEST_COOLDOWN_MS = 2000;
 let previewUrl = null;
+// Global session memory shared with the AI stylist so suggestions are not repeated.
+let sessionHistory = [];
 
 const uiState = {
   section: "home",
@@ -39,6 +45,9 @@ const uiState = {
   resultSet: null,
   activeOutfitIndex: 0,
   formPayload: null,
+  isLoading: false,
+  lastRequestFinishedAt: 0,
+  sessionHistory, // Points to the same array as the global — keep in sync via mutations
 };
 
 const exploreCards = [
@@ -66,7 +75,7 @@ initialize();
 
 function initialize() {
   renderExploreGrid();
-  renderResultSet(buildDefaultResultSet());
+  // Do not pre-render fake outfits; the outfit cards start empty until OpenAI responds.
   bindSectionNavigation();
   bindFilters();
   bindFormSync();
@@ -157,9 +166,15 @@ function handleImagePreview(event) {
   }
 
   if (!file) {
-    previewContainer.classList.add("hidden");
-    imagePreview.removeAttribute("src");
-    fileMeta.textContent = "";
+    previewContainer?.classList.add("hidden");
+    imagePreview?.removeAttribute("src");
+    if (fileMeta) {
+      fileMeta.textContent = "";
+    }
+    return;
+  }
+
+  if (!previewContainer || !imagePreview || !fileMeta) {
     return;
   }
 
@@ -171,50 +186,129 @@ function handleImagePreview(event) {
 
 async function handleSubmit(event) {
   event.preventDefault();
+
+  // ── Immediately lock the button on click to prevent overlapping requests ──
+  submitButton.disabled = true;
+  if (buttonLabel) buttonLabel.textContent = "Styling... ⏳";
+
+  if (!canStartAiRequest("outfit request")) {
+    // canStartAiRequest already logged/warned; restore button and bail.
+    submitButton.disabled = false;
+    if (buttonLabel) buttonLabel.textContent = "Get Outfit 🔥";
+    return;
+  }
+
   const formData = new FormData(form);
 
   // Sync current UI state explicitly to formData
   formData.set("audience", uiState.audience);
   formData.set("style", uiState.style);
-  uiState.formPayload = new FormData(formData);
+  uiState.formPayload = formData;
 
   setLoadingState(true);
   setStatus("Creating your AI styling board...", "success");
   setActiveSection("results");
 
-  // Add skeleton loaders to result panels
+  // Show skeleton loaders
   outfitCards.innerHTML = '<div class="skeleton" style="height: 120px; border-radius: 1.5rem; width: 100%;"></div>'.repeat(3);
   itemsList.innerHTML = '<div class="skeleton" style="height: 80px; border-radius: 1.4rem; width: 100%;"></div>'.repeat(4);
 
+  // Hide reasoning panel while loading
+  if (agentReasoningSection) agentReasoningSection.classList.add("hidden");
+
   try {
-    const response = await fetch(API_URL, {
+    // Log session history so deduplication can be verified in the browser console
+    console.log("[Fashion Sensor] Sending sessionHistory to AI blacklist:", [...sessionHistory]);
+
+    const agenticResponse = await fetch(AGENTIC_API_URL, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gender: document.getElementById("audience")?.value || uiState.audience,
+        purpose: document.getElementById("purpose")?.value || "casual",
+        styleVibe: document.getElementById("style")?.value || uiState.style,
+        location: document.getElementById("location")?.value?.trim() || "",
+        notes: document.getElementById("notes")?.value?.trim() || "",
+        history: [...sessionHistory],
+      }),
     });
 
-    const json = await response.json();
-    if (!response.ok) {
-      throw new Error(json.error || `Server error (${response.status})`);
+    if (agenticResponse.ok) {
+      const agenticData = await agenticResponse.json();
+
+      if (Array.isArray(agenticData.options) && agenticData.options.length > 0) {
+        const style = document.getElementById("style")?.value || uiState.style;
+        const audience = document.getElementById("audience")?.value || uiState.audience;
+        uiState.resultSet = {
+          audience,
+          style: style === "all" ? "casual" : style,
+          outfits: agenticData.options,
+          outfit: agenticData.options[0],
+          items: [],
+          amazonLinks: {},
+          pinterestQuery: buildPinterestQueryFromState(style === "all" ? "casual" : style, audience),
+          source: "openai",
+        };
+        uiState.activeOutfitIndex = 0;
+
+        renderResultSet(deriveFilteredResultSet());
+
+        document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+        loadPinterestImages(uiState.resultSet.pinterestQuery);
+        setStatus("AI outfit suggestions ready.", "success");
+
+        // Show agent reasoning panel
+        if (agenticData.reasoning && agentReasoning && agentReasoningSection) {
+          agentReasoning.textContent = agenticData.reasoning;
+          agentReasoningSection.classList.remove("hidden");
+        }
+
+        // Append options to sessionHistory (deduplication blacklist)
+        agenticData.options.forEach(option => {
+          if (option && !sessionHistory.includes(option)) {
+            sessionHistory.push(option);
+          }
+        });
+        if (sessionHistory.length > 15) sessionHistory.splice(0, sessionHistory.length - 15);
+
+      } else {
+        console.warn("Backend returned no options, likely due to rate limiting.");
+        outfitCards.innerHTML = '<p style="color: #ff6b6b; padding: 1rem;">The AI stylist is busy right now. Please wait a moment and try again.</p>';
+        setStatus("AI stylist is rate limited. Please wait a moment.", "error");
+      }
+
+    } else {
+      const agenticErr = await agenticResponse.json().catch(() => ({}));
+      console.error("Backend Error:", agenticErr);
+      outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${agenticErr.error || "Please check your API key and try again."}</p>`;
+      setStatus("Error: Could not connect to AI stylist.", "error");
     }
 
-    uiState.resultSet = normalizeResultSet(json, formData);
-    uiState.activeOutfitIndex = 0;
-    renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(uiState.resultSet.pinterestQuery);
-    setStatus("Outfit options generated successfully.", "success");
-    document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    uiState.resultSet = buildDefaultResultSet();
-    uiState.activeOutfitIndex = 0;
-    renderResultSet(deriveFilteredResultSet());
-    loadPinterestImages(uiState.resultSet.pinterestQuery);
+    console.error("Backend Error:", error);
+    outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${error.message}</p>`;
     setStatus(error.message || "Something went wrong while contacting the server.", "error");
   } finally {
+    // ── Restore loading state immediately so spinners/skeletons clear ──
     setLoadingState(false);
+    markRequestFinished();
+
+    // ── Absolute 3-second cooldown: button stays disabled until the timer
+    //    fires — physically prevents multi-click overlaps ──
+    setTimeout(() => {
+      submitButton.disabled = false;
+      if (buttonLabel) buttonLabel.textContent = "Get Outfit 🔥";
+    }, 3000);
   }
 }
 
+
 async function handleRethinkOutfit() {
+  if (!canStartAiRequest("rethink request")) {
+    return;
+  }
+
   const activeSet = deriveFilteredResultSet();
   if (uiState.formPayload) {
     const outfits = activeSet.outfits || [];
@@ -229,7 +323,7 @@ async function handleRethinkOutfit() {
     try {
       const response = await fetch(API_URL, {
         method: "POST",
-        body: new FormData(uiState.formPayload),
+        body: uiState.formPayload,
       });
       const json = await response.json();
       if (!response.ok) {
@@ -246,6 +340,7 @@ async function handleRethinkOutfit() {
       setStatus(error.message || "Unable to fetch a new outfit set right now.", "error");
     } finally {
       setLoadingState(false);
+      markRequestFinished();
     }
     return;
   }
@@ -354,7 +449,7 @@ async function fetchUnsplashImages(query) {
   const constrainedQuery = applyNegativeConstraints(query);
 
   try {
-    const response = await fetch(`http://localhost:8080/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=6&orientation=portrait`);
+    const response = await fetch(`${API_BASE_URL}/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=6&orientation=portrait`);
     if (!response.ok) throw new Error("Rate limit or auth issue with backend Unsplash proxy.");
     const data = await response.json();
     
@@ -454,7 +549,7 @@ async function loadPinterestImages(query) {
   pinterestContainer.innerHTML = Array.from({ length: 4 }).map(() => '<div class="skeleton" style="height: 380px; border-radius: 1.5rem;"></div>').join("");
 
   try {
-    const response = await fetch(`http://localhost:8080/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=4&orientation=portrait`);
+    const response = await fetch(`${API_BASE_URL}/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=4&orientation=portrait`);
     if (!response.ok) throw new Error("Backend Unsplash proxy limit reached.");
     const data = await response.json();
 
@@ -569,78 +664,32 @@ function buildDefaultResultSet() {
   return {
     audience,
     style,
-    items: buildDefaultItems(style, audience),
-    outfits: buildDefaultOutfits(style, audience),
-    amazonLinks: normalizeAmazonLinks({}, buildDefaultItems(style, audience), audience),
+    items: [],
+    outfits: [],
+    amazonLinks: {},
     pinterestQuery: buildPinterestQueryFromState(style, audience),
-    source: "form-fallback",
+    source: "pending",
   };
 }
 
 function buildDefaultItems(style, audience) {
-  const catalog = {
-    men: {
-      casual: ["white shirt", "blue jeans", "clean sneakers", "lightweight overshirt", "minimal watch"],
-      formal: ["oxford shirt", "tailored trousers", "derby shoes", "navy blazer", "leather belt"],
-      genz: ["boxy tee", "cargo pants", "retro sneakers", "crossbody bag", "silver chain"],
-      minimal: ["fine knit tee", "straight trousers", "leather sneakers", "overshirt", "clean watch"],
-      athleisure: ["performance tee", "track pants", "running shoes", "zip jacket", "sport watch"],
-    },
-    women: {
-      casual: ["neutral top", "blue jeans", "white sneakers", "cropped cardigan", "sleek tote"],
-      formal: ["tailored blazer", "straight trousers", "pointed heels", "silk shell top", "structured tote"],
-      genz: ["cropped graphic tee", "wide-leg jeans", "platform sneakers", "mini shoulder bag", "layered rings"],
-      minimal: ["ribbed knit top", "cream trousers", "loafers", "soft blazer", "gold hoops"],
-      athleisure: ["performance tee", "leggings", "running shoes", "light jacket", "sport tote"],
-    },
-    kids: {
-      casual: ["graphic sweatshirt", "soft denim", "play sneakers", "light cap", "mini backpack"],
-      formal: ["neat shirt", "tailored chinos", "polished sneakers", "soft cardigan", "dress watch"],
-      genz: ["hoodie", "joggers", "chunky trainers", "crossbody pouch", "beanie"],
-      minimal: ["solid tee", "easy trousers", "slip-on shoes", "overshirt", "small backpack"],
-      athleisure: ["sport tee", "track pants", "running shoes", "zip hoodie", "duffle bag"],
-    },
-  };
-
-  return catalog[audience]?.[style] || catalog[audience]?.casual || catalog.men.casual;
+  // No hardcoded fallback data — only the AI can provide real clothing items.
+  return [];
 }
 
 function buildDefaultOutfits(style, audience) {
-  const lookbook = {
-    men: {
-      casual: ["white shirt + blue jeans + sneakers", "black t-shirt + cargo pants + sneakers", "hoodie + joggers + trainers"],
-      formal: ["oxford shirt + tailored trousers + derby shoes", "fine knit polo + pleated pants + loafers", "navy blazer + chinos + leather sneakers"],
-      genz: ["boxy tee + baggy jeans + chunky sneakers", "graphic hoodie + cargo pants + retro trainers", "layered tee + relaxed denim + skate shoes"],
-      minimal: ["fine knit tee + straight trousers + leather sneakers", "overshirt + tapered denim + loafers", "cream shirt + black trousers + court sneakers"],
-      athleisure: ["performance jacket + track pants + running shoes", "dry-fit tee + joggers + knit trainers", "zip hoodie + tech pants + lifestyle sneakers"],
-    },
-    women: {
-      casual: ["neutral top + blue jeans + white sneakers", "cropped cardigan + midi skirt + sleek flats", "ribbed tank + relaxed denim + loafers"],
-      formal: ["tailored blazer + straight trousers + pointed heels", "silk blouse + tapered pants + slingback pumps", "belted co-ord set + loafers + structured tote"],
-      genz: ["cropped graphic tee + wide-leg jeans + platform sneakers", "baby tee + parachute pants + chunky sneakers", "oversized shirt + mini skirt + high-top sneakers"],
-      minimal: ["ribbed knit top + cream trousers + loafers", "soft blazer + knit dress + ankle boots", "monochrome co-ord + sleek sneakers + tote"],
-      athleisure: ["performance tee + leggings + trainers", "zip jacket + flare pants + sneakers", "sport bra + cargo joggers + running shoes"],
-    },
-    kids: {
-      casual: ["graphic sweatshirt + soft denim + play sneakers", "striped tee + cargo shorts + sporty sandals", "hoodie + joggers + colorful trainers"],
-      formal: ["neat shirt + chinos + polished sneakers", "soft cardigan + trousers + loafers", "mini blazer + denim + slip-ons"],
-      genz: ["oversized hoodie + joggers + chunky trainers", "graphic tee + cargo pants + bright sneakers", "check shirt + relaxed jeans + skate shoes"],
-      minimal: ["solid tee + easy trousers + slip-on shoes", "soft knit + denim + clean sneakers", "overshirt + joggers + low-top trainers"],
-      athleisure: ["sport tee + track pants + running shoes", "zip hoodie + shorts + trainers", "performance top + joggers + sporty sandals"],
-    },
-  };
-
-  return lookbook[audience]?.[style] || lookbook[audience]?.casual || lookbook.men.casual;
+  // No hardcoded fallback data; only the AI can provide real outfit suggestions.
+  return [];
 }
 
 function ensureMinimumItems(items, style, audience) {
-  const merged = [...new Set([...items, ...buildDefaultItems(style, audience)])];
-  return merged.slice(0, 5);
+  // Never pad with fake data — only use what the AI returned
+  return sanitizeStringArray(items).slice(0, 5);
 }
 
 function ensureMinimumOutfits(outfits, style, audience) {
-  const merged = [...new Set([...outfits, ...buildDefaultOutfits(style, audience)])];
-  return merged.slice(0, 5);
+  // Never pad with fake data; only use what the AI returned.
+  return sanitizeStringArray(outfits).slice(0, 5);
 }
 
 function normalizeAmazonLinks(links, items, audience) {
@@ -683,6 +732,7 @@ function createExploreCardMarkup(card) {
 function getSourceLabel(source) {
   const labels = {
     "ai-image": "Image analyzed with AI vision for outfit-specific suggestions.",
+    "openai": "Generated by OpenAI for this request.",
     "fallback-after-image": "Image upload was received, but a safe fallback outfit set was generated from your inputs.",
     "form-fallback": "No image was required. This outfit set was generated from your selected style, purpose, and audience.",
   };
@@ -714,12 +764,34 @@ function buildItemKey(item) {
 }
 
 function setLoadingState(isLoading) {
+  uiState.isLoading = isLoading;
   submitButton.disabled = isLoading;
   if (rethinkOutfitButton) {
     rethinkOutfitButton.disabled = isLoading;
   }
   loadingSpinner.classList.toggle("hidden", !isLoading);
   buttonLabel.textContent = isLoading ? "Styling..." : "Get Outfit 🔥";
+}
+
+function canStartAiRequest(label) {
+  if (uiState.isLoading) {
+    console.warn(`[Fashion Sensor] Blocked ${label}: request already running.`);
+    return false;
+  }
+
+  const elapsed = Date.now() - uiState.lastRequestFinishedAt;
+  if (elapsed < REQUEST_COOLDOWN_MS) {
+    const waitMs = REQUEST_COOLDOWN_MS - elapsed;
+    console.warn(`[Fashion Sensor] Blocked ${label}: cooldown active for ${waitMs}ms.`);
+    setStatus("Please wait a moment before requesting another outfit.", "error");
+    return false;
+  }
+
+  return true;
+}
+
+function markRequestFinished() {
+  uiState.lastRequestFinishedAt = Date.now();
 }
 
 function setStatus(message, state) {

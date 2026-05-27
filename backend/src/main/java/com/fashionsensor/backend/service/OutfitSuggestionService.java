@@ -2,6 +2,7 @@ package com.fashionsensor.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fashionsensor.backend.model.SuggestionRequest;
 import com.fashionsensor.backend.model.SuggestionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,218 +13,353 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+import io.netty.resolver.DefaultAddressResolverGroup;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 
-import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Random;
+import java.util.Set;
 
 @Service
 public class OutfitSuggestionService {
 
     private static final Logger logger = LoggerFactory.getLogger(OutfitSuggestionService.class);
-    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String OPENAI_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final String openAiApiKey;
     private final String openAiModel;
-    private final Random random = new Random();
 
     public OutfitSuggestionService(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openAiApiKey,
-            @Value("${openai.model:gpt-4o-mini}") String openAiModel
-    ) {
-        this.webClient = webClientBuilder.baseUrl(OPENAI_API_URL).build();
+            @Value("${openai.model:gpt-4o-mini}") String openAiModel) {
+        // Use the JVM's default (Java) DNS resolver instead of Netty's async resolver.
+        // Netty's resolver fails with DnsNameResolverTimeoutException in some network
+        // environments; DefaultAddressResolverGroup falls back to the OS DNS stack.
+        HttpClient httpClient = HttpClient.create()
+                .resolver(DefaultAddressResolverGroup.INSTANCE);
+        this.webClient = webClientBuilder
+                .baseUrl(OPENAI_API_URL)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
         this.objectMapper = objectMapper;
-        this.openAiApiKey = openAiApiKey;
-        this.openAiModel = openAiModel;
+        // Trim whitespace that can sneak in from .env files (e.g. "KEY= value" → " value")
+        this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
+        this.openAiModel = defaultIfBlank(openAiModel, "gpt-4o-mini");
+        logger.info("OutfitSuggestionService initialized. model={} apiKeyLength={}",
+                this.openAiModel, this.openAiApiKey.length());
     }
 
-    public SuggestionResponse generateSuggestion(Map<String, String> requestData, MultipartFile photo) {
-        Map<String, String> normalized = normalize(requestData);
+    public SuggestionResponse generateSuggestion(Map<String, String> data, MultipartFile photo) {
+        Map<String, String> normalized = normalize(data, photo);
         String audience = normalized.get("audience");
+        String style = normalized.get("style");
 
-        if (photo != null && !photo.isEmpty()) {
-            try {
-                SuggestionResponse aiSuggestion = generateImageSuggestion(normalized, photo);
-                if (aiSuggestion != null) {
-                    return aiSuggestion;
-                }
-            } catch (Exception exception) {
-                logger.warn("Image analysis failed. Falling back to rules-based recommendation.", exception);
+        try {
+            String content = callOpenAi(buildOutfitPrompt(normalized, Collections.emptyList()));
+            OpenAiOutfitResult result = parseOpenAiContent(content);
+
+            if (result.options().isEmpty()) {
+                logger.error("OpenAI response parsed successfully but contained no options. content={}", content);
+                return minimalResponse(audience, style);
             }
-        }
 
-        return generateFallbackSuggestion(normalized, photo != null && !photo.isEmpty(), audience);
+            return toSuggestionResponse(result, audience, style);
+        } catch (Exception e) {
+            logger.error("OpenAI outfit suggestion failed. Returning API-failure fallback.", e);
+            return fallbackResponse(audience, style);
+        }
     }
 
-    private SuggestionResponse generateImageSuggestion(Map<String, String> requestData, MultipartFile photo) throws IOException {
+    public Map<String, Object> generateAgenticSuggestion(SuggestionRequest request) {
+        Map<String, String> normalized = normalize(request);
+
+        try {
+            String content = callOpenAi(buildOutfitPrompt(normalized, safeHistory(request)));
+            OpenAiOutfitResult result = parseOpenAiContent(content);
+
+            if (result.options().isEmpty()) {
+                logger.error("OpenAI agentic response parsed successfully but contained no options. content={}", content);
+                return Map.of(
+                        "reasoning", "",
+                        "options", List.of());
+            }
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("reasoning", result.reasoning());
+            response.put("options", result.options());
+            return response;
+        } catch (Exception e) {
+            logger.error("OpenAI agentic suggestion failed.", e);
+            throw new RuntimeException("OpenAI suggestion failed: " + e.getMessage(), e);
+        }
+    }
+
+    private String callOpenAi(String prompt) throws Exception {
         if (!StringUtils.hasText(openAiApiKey)) {
-            logger.info("OPENAI_API_KEY is not configured. Skipping image analysis.");
-            return null;
+            throw new IllegalStateException(
+                    "OPENAI_API_KEY is not configured or is blank. " +
+                    "Check your .env file — ensure there is no space after the '=' sign.");
         }
 
-        String audience = requestData.get("audience");
-        String style = requestData.get("style");
-        String purpose = requestData.get("purpose");
-        String location = requestData.get("location");
+        Map<String, Object> message = Map.of(
+                "role", "user",
+                "content", prompt);
 
-        String base64 = Base64.getEncoder().encodeToString(photo.getBytes());
-        String mimeType = StringUtils.hasText(photo.getContentType()) ? photo.getContentType() : MediaType.IMAGE_JPEG_VALUE;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("model", openAiModel);
+        payload.put("messages", List.of(message));
 
-        Map<String, Object> payload = buildVisionPayload(requestData, base64, mimeType);
-
-        String rawResponse = webClient.post()
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + openAiApiKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(payload)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        String rawResponse = callOpenAiOnce(payload);
 
         if (!StringUtils.hasText(rawResponse)) {
-            return null;
+            throw new IllegalStateException("OpenAI returned an empty response body.");
         }
 
         JsonNode root = objectMapper.readTree(rawResponse);
         String content = root.path("choices").path(0).path("message").path("content").asText("");
-        if (!StringUtils.hasText(content)) {
-            logger.warn("OpenAI response did not contain content. response={}", rawResponse);
-            return null;
+        logger.info("OpenAI RAW message.content: {}", content);
+        content = content.replace("```json", "")
+                 .replace("```", "")
+                 .trim();
+
+         if (!StringUtils.hasText(content)) {
+            logger.warn("OpenAI returned empty content");
+            return "{}"; // safe fallback, but doesn't crash
         }
 
-        JsonNode parsed = objectMapper.readTree(stripCodeFences(content));
-        List<String> items = sanitizeItems(parsed.path("items"));
-        if (items.isEmpty()) {
-            items = buildFallbackItems(style, purpose, audience, location);
-        }
-
-        String resolvedStyle = defaultIfBlank(parsed.path("style").asText(""), style);
-        List<String> outfits = sanitizeItems(parsed.path("outfits"));
-        if (outfits.isEmpty()) {
-            outfits = buildFallbackOutfits(defaultIfBlank(resolvedStyle, style), purpose, audience, location);
-        }
-        String outfit = defaultIfBlank(parsed.path("outfit").asText(""), outfits.get(0));
-        String pinterestQuery = buildPinterestQuery(defaultIfBlank(resolvedStyle, style), audience);
-
-        return new SuggestionResponse(
-                outfit,
-                outfits,
-                items,
-                defaultIfBlank(resolvedStyle, "casual"),
-                buildAmazonLinks(items, audience),
-                pinterestQuery,
-                audience,
-                "ai-image"
-        );
+        return content;
     }
 
-    private Map<String, Object> buildVisionPayload(Map<String, String> requestData, String base64, String mimeType) {
-        String prompt = """
-                Analyze the uploaded outfit or wardrobe image and respond with strict JSON only.
-                Required JSON shape:
-                {
-                  "outfits": ["look 1", "look 2", "look 3"],
-                  "items": ["item 1", "item 2", "item 3", "item 4"],
-                  "outfit": "full outfit recommendation",
-                  "style": "style keyword"
+    /**
+     * Makes a single, non-retrying HTTP POST to the OpenAI completions endpoint.
+     * Any error is thrown immediately as a {@link RuntimeException} — no retry,
+     * no back-off, no blocking thread accumulation.
+     */
+    private String callOpenAiOnce(Map<String, Object> payload) {
+        try {
+            String response = webClient.post()
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + openAiApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(payload)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            if (response == null) {
+                throw new IllegalStateException("OpenAI returned a null response body.");
+            }
+            return response;
+        } catch (RuntimeException e) {
+            logger.error("OpenAI single-shot call failed: {}", e.getMessage());
+            throw new RuntimeException("OpenAI API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    private Map<String, Object> safeEmptyOptions() {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("reasoning", "");
+        response.put("options", List.of());
+        return response;
+    }
+
+    private String buildOutfitPrompt(Map<String, String> normalized, List<String> history) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Generate 3 outfit suggestions in JSON format with fields: title, top, bottom, footwear, accessories, style.\n");
+        prompt.append("Return ONLY valid JSON. Do NOT include markdown or explanations outside JSON.\n");
+        prompt.append("Use exactly this shape:\n");
+        prompt.append("{\"options\":[{\"title\":\"Outfit 1\",\"top\":\"string\",\"bottom\":\"string\",\"footwear\":\"string\",\"accessories\":[\"string\"],\"style\":\"casual\"}]}\n\n");
+        prompt.append("User context:\n");
+        prompt.append("Gender: ").append(normalized.get("audience")).append("\n");
+        prompt.append("Occasion: ").append(normalized.get("occasion")).append("\n");
+        prompt.append("Weather: ").append(normalized.get("weather")).append("\n");
+        prompt.append("Wardrobe: ").append(normalized.get("wardrobe")).append("\n");
+
+        if (!history.isEmpty()) {
+            prompt.append("Avoid repeating these previous outfits:\n");
+            for (int i = 0; i < history.size(); i++) {
+                prompt.append(i + 1).append(". ").append(history.get(i)).append("\n");
+            }
+        }
+
+        return prompt.toString();
+    }
+
+    private OpenAiOutfitResult parseOpenAiContent(String content) throws Exception {
+        String cleaned = stripCodeFences(content);
+        JsonNode root = objectMapper.readTree(cleaned);
+        JsonNode optionsNode = root.path("options");
+
+        if (!optionsNode.isArray()) {
+            throw new IllegalArgumentException("OpenAI JSON does not contain an options array.");
+        }
+
+        List<String> options = new ArrayList<>();
+        Set<String> items = new LinkedHashSet<>();
+        String style = "";
+
+        for (JsonNode optionNode : optionsNode) {
+            if (optionNode.isTextual()) {
+                String text = optionNode.asText("").trim();
+                if (StringUtils.hasText(text)) {
+                    options.add(text);
+                    items.addAll(splitIntoItems(text));
                 }
-                Provide 3 distinct outfit options and at least 4 concrete items. Keep the style concise.
-                Infer clothing pieces, colors, and overall vibe from the image.
-                Use this context when relevant:
-                audience=%s
-                purpose=%s
-                location=%s
-                withWhom=%s
-                notes=%s
-                """.formatted(
-                requestData.get("audience"),
-                requestData.get("purpose"),
-                requestData.get("location"),
-                requestData.get("withWhom"),
-                requestData.get("notes")
-        );
+                continue;
+            }
 
-        Map<String, Object> imageUrl = Map.of(
-                "url", "data:" + mimeType + ";base64," + base64
-        );
+            if (!optionNode.isObject()) {
+                continue;
+            }
 
-        Map<String, Object> textContent = Map.of(
-                "type", "text",
-                "text", prompt
-        );
+            String title = optionNode.path("title").asText("");
+            String top = optionNode.path("top").asText("");
+            String bottom = optionNode.path("bottom").asText("");
+            String footwear = optionNode.path("footwear").asText("");
+            String optionStyle = optionNode.path("style").asText("");
+            List<String> accessories = readAccessories(optionNode.path("accessories"));
 
-        Map<String, Object> imageContent = Map.of(
-                "type", "image_url",
-                "image_url", imageUrl
-        );
+            addIfPresent(items, top);
+            addIfPresent(items, bottom);
+            addIfPresent(items, footwear);
+            accessories.forEach(accessory -> addIfPresent(items, accessory));
 
-        Map<String, Object> userMessage = Map.of(
-                "role", "user",
-                "content", List.of(textContent, imageContent)
-        );
+            if (StringUtils.hasText(optionStyle)) {
+                style = optionStyle.trim();
+            }
 
-        String baseSystemContent = "You are a fashion stylist and vision assistant. Return valid JSON only.";
-        String userNotes = requestData.get("notes");
-        if (StringUtils.hasText(userNotes)) {
-            baseSystemContent += " CRITICAL CONSTRAINT: The user explicitly noted: '" + userNotes + "'. You MUST STRICTLY exclude any items, colors, or styles mentioned as a negative (e.g. 'no white', 'avoid red', 'without hat'). DO NOT include them in any response.";
+            String outfit = buildOutfitText(title, top, bottom, footwear, accessories);
+            if (StringUtils.hasText(outfit)) {
+                options.add(outfit);
+            }
         }
 
-        Map<String, Object> systemMessage = Map.of(
-                "role", "system",
-                "content", baseSystemContent
-        );
-
-        Map<String, Object> responseFormat = Map.of(
-                "type", "json_object"
-        );
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("model", openAiModel);
-        payload.put("temperature", 0.3);
-        payload.put("response_format", responseFormat);
-        payload.put("messages", List.of(systemMessage, userMessage));
-        return payload;
+        return new OpenAiOutfitResult(
+                root.path("reasoning").asText(""),
+                options,
+                new ArrayList<>(items),
+                style);
     }
 
-    private SuggestionResponse generateFallbackSuggestion(Map<String, String> requestData, boolean imageAttempted, String audience) {
-        String style = requestData.get("style");
-        String purpose = requestData.get("purpose");
-        String location = requestData.get("location");
-        List<String> items = buildFallbackItems(style, purpose, audience, location);
-        List<String> outfits = buildFallbackOutfits(style, purpose, audience, location);
-        String outfit = outfits.get(0);
+    private SuggestionResponse toSuggestionResponse(OpenAiOutfitResult result, String audience, String fallbackStyle) {
+        String style = defaultIfBlank(result.style(), fallbackStyle);
+        List<String> items = result.items();
+        String primaryOutfit = result.options().get(0);
 
         return new SuggestionResponse(
-                outfit,
-                outfits,
+                primaryOutfit,
+                result.options(),
                 items,
                 style,
                 buildAmazonLinks(items, audience),
                 buildPinterestQuery(style, audience),
                 audience,
-                imageAttempted ? "fallback-after-image" : "form-fallback"
-        );
+                "openai");
     }
 
-    private Map<String, String> normalize(Map<String, String> source) {
+    private SuggestionResponse minimalResponse(String audience, String style) {
+        return new SuggestionResponse(
+                "",
+                Collections.emptyList(),
+                Collections.emptyList(),
+                defaultIfBlank(style, "casual"),
+                Collections.emptyMap(),
+                buildPinterestQuery(style, audience),
+                defaultIfBlank(audience, "men"),
+                "openai");
+    }
+
+    private SuggestionResponse fallbackResponse(String audience, String style) {
+        List<String> outfits = List.of(
+                "Reliable casual outfit: breathable t-shirt, straight-fit jeans, clean sneakers, and a simple watch");
+        List<String> items = List.of("breathable t-shirt", "straight-fit jeans", "clean sneakers", "simple watch");
+        String resolvedStyle = defaultIfBlank(style, "casual");
+
+        return new SuggestionResponse(
+                outfits.get(0),
+                outfits,
+                items,
+                resolvedStyle,
+                buildAmazonLinks(items, audience),
+                buildPinterestQuery(resolvedStyle, audience),
+                defaultIfBlank(audience, "men"),
+                "fallback");
+    }
+
+    private Map<String, String> normalize(Map<String, String> source, MultipartFile photo) {
         Map<String, String> normalized = new LinkedHashMap<>();
-        normalized.put("audience", defaultIfBlank(getValue(source, "audience"), "men"));
-        normalized.put("style", defaultIfBlank(getValue(source, "style"), "casual"));
-        normalized.put("purpose", defaultIfBlank(getValue(source, "purpose"), "casual"));
-        normalized.put("location", defaultIfBlank(getValue(source, "location"), "city"));
-        normalized.put("withWhom", defaultIfBlank(getValue(source, "withWhom"), "friends"));
-        normalized.put("notes", defaultIfBlank(getValue(source, "notes"), ""));
+        String audience = defaultIfBlank(getValue(source, "audience"), "men");
+        String purpose = defaultIfBlank(getValue(source, "purpose"), "casual");
+        String style = defaultIfBlank(getValue(source, "style"), "casual");
+        String location = defaultIfBlank(getValue(source, "location"), "not specified");
+        String notes = defaultIfBlank(getValue(source, "notes"), "");
+        String withWhom = defaultIfBlank(getValue(source, "withWhom"), "");
+        String date = defaultIfBlank(getValue(source, "date"), "");
+        String weather = defaultIfBlank(getValue(source, "weather"), "normal");
+        String wardrobe = defaultIfBlank(getValue(source, "items"), "");
+
+        if (!StringUtils.hasText(wardrobe)) {
+            List<String> context = new ArrayList<>();
+            context.add("Style vibe: " + style);
+            context.add("Location: " + location);
+            if (StringUtils.hasText(withWhom)) context.add("Going with: " + withWhom);
+            if (StringUtils.hasText(date)) context.add("Date/time: " + date);
+            if (StringUtils.hasText(notes)) context.add("User notes: " + notes);
+            if (photo != null && !photo.isEmpty()) {
+                context.add("Wardrobe photo uploaded: " + photo.getOriginalFilename());
+            } else {
+                context.add("Wardrobe photo: not uploaded");
+            }
+            wardrobe = String.join("; ", context);
+        }
+
+        normalized.put("audience", audience);
+        normalized.put("occasion", buildOccasion(purpose, style, notes));
+        normalized.put("style", style);
+        normalized.put("weather", weather);
+        normalized.put("wardrobe", wardrobe);
         return normalized;
+    }
+
+    private Map<String, String> normalize(SuggestionRequest request) {
+        String audience = defaultIfBlank(request.gender(), "men");
+        String purpose = defaultIfBlank(request.purpose(), "casual");
+        String style = defaultIfBlank(request.styleVibe(), "casual");
+        String location = defaultIfBlank(request.location(), "not specified");
+        String notes = defaultIfBlank(request.notes(), "");
+
+        Map<String, String> normalized = new LinkedHashMap<>();
+        normalized.put("audience", audience);
+        normalized.put("occasion", buildOccasion(purpose, style, notes));
+        normalized.put("style", style);
+        normalized.put("weather", "normal");
+        normalized.put("wardrobe", "Location: " + location + (StringUtils.hasText(notes) ? "; User notes: " + notes : ""));
+        return normalized;
+    }
+
+    private List<String> safeHistory(SuggestionRequest request) {
+        return request.history() == null ? Collections.emptyList() : request.history();
+    }
+
+    private String buildOccasion(String purpose, String style, String notes) {
+        String occasion = defaultIfBlank(purpose, "casual");
+        if (StringUtils.hasText(style)) {
+            occasion += " / " + style.trim();
+        }
+        if (StringUtils.hasText(notes)) {
+            occasion += " / notes: " + notes.trim();
+        }
+        return occasion;
     }
 
     private String getValue(Map<String, String> source, String key) {
@@ -234,65 +370,54 @@ public class OutfitSuggestionService {
         return value == null ? "" : value.trim();
     }
 
-    private List<String> buildFallbackItems(String style, String purpose, String audience, String location) {
-        String normalizedStyle = defaultIfBlank(style, "casual").toLowerCase(Locale.ENGLISH);
-        String normalizedAudience = defaultIfBlank(audience, "men").toLowerCase(Locale.ENGLISH);
+    private String buildOutfitText(String title, String top, String bottom, String footwear, List<String> accessories) {
+        List<String> pieces = new ArrayList<>();
+        if (StringUtils.hasText(top)) pieces.add(top.trim());
+        if (StringUtils.hasText(bottom)) pieces.add(bottom.trim());
+        if (StringUtils.hasText(footwear)) pieces.add(footwear.trim());
+        pieces.addAll(accessories);
 
-        List<String> tops = normalizedAudience.contains("women") 
-            ? List.of("silk blouse", "ribbed knit top", "cropped graphic tee", "tailored blazer", "neutral tank")
-            : (normalizedAudience.contains("kids") 
-                ? List.of("graphic sweatshirt", "solid tee", "striped polo", "hoodie", "soft cardigan") 
-                : List.of("crisp oxford shirt", "boxy tee", "fine knit sweater", "navy blazer", "lightweight overshirt"));
-
-        List<String> bottoms = normalizedAudience.contains("women")
-            ? List.of("straight-fit trousers", "wide-leg jeans", "pleated midi skirt", "flare leggings", "tailored shorts")
-            : (normalizedAudience.contains("kids")
-                ? List.of("soft denim", "cargo shorts", "joggers", "tailored chinos", "corduroy pants")
-                : List.of("slim-fit trousers", "baggy jeans", "pleated chinos", "cargo pants", "tapered denim"));
-
-        List<String> shoes = normalizedAudience.contains("women")
-            ? List.of("platform sneakers", "pointed heels", "loafers", "sleek flats", "ankle boots")
-            : (normalizedAudience.contains("kids")
-                ? List.of("play sneakers", "slip-on shoes", "sporty sandals", "colorful trainers", "canvas shoes")
-                : List.of("clean sneakers", "leather loafers", "derby shoes", "chunky trainers", "skate shoes"));
-
-        List<String> accessories = normalizedAudience.contains("women")
-            ? List.of("structured tote", "gold hoops", "mini shoulder bag", "silk scarf", "layered rings")
-            : (normalizedAudience.contains("kids")
-                ? List.of("light cap", "mini backpack", "colorful beanie", "fun watch", "crossbody pouch")
-                : List.of("minimal watch", "leather belt", "silver chain", "crossbody bag", "polarized sunglasses"));
-
-        return List.of(
-            tops.get(random.nextInt(tops.size())),
-            bottoms.get(random.nextInt(bottoms.size())),
-            shoes.get(random.nextInt(shoes.size())),
-            accessories.get(random.nextInt(accessories.size())),
-            "signature fragrance"
-        );
+        String body = String.join(", ", pieces);
+        String resolvedTitle = defaultIfBlank(title, "");
+        if (StringUtils.hasText(resolvedTitle) && StringUtils.hasText(body)) {
+            return resolvedTitle + ": " + body;
+        }
+        if (StringUtils.hasText(resolvedTitle)) {
+            return resolvedTitle;
+        }
+        return body;
     }
 
-    private List<String> buildFallbackOutfits(String style, String purpose, String audience, String location) {
-        List<String> outfits = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            List<String> items = buildFallbackItems(style, purpose, audience, location);
-            outfits.add(items.get(0) + " + " + items.get(1) + " + " + items.get(2) + " + " + items.get(3));
-        }
-        return outfits;
-    }
-
-    private List<String> sanitizeItems(JsonNode itemsNode) {
-        if (!itemsNode.isArray()) {
-            return List.of();
+    private List<String> readAccessories(JsonNode accessoriesNode) {
+        if (!accessoriesNode.isArray()) {
+            return Collections.emptyList();
         }
 
-        List<String> items = new ArrayList<>();
-        for (JsonNode itemNode : itemsNode) {
-            String value = itemNode.asText("").trim();
-            if (StringUtils.hasText(value)) {
-                items.add(value);
+        List<String> accessories = new ArrayList<>();
+        for (JsonNode accessoryNode : accessoriesNode) {
+            String accessory = accessoryNode.asText("").trim();
+            if (StringUtils.hasText(accessory)) {
+                accessories.add(accessory);
             }
         }
-        return items;
+        return accessories;
+    }
+
+    private void addIfPresent(Set<String> items, String value) {
+        if (StringUtils.hasText(value)) {
+            items.add(value.trim());
+        }
+    }
+
+    private List<String> splitIntoItems(String outfit) {
+        if (!StringUtils.hasText(outfit)) return Collections.emptyList();
+        String[] parts = outfit.split("[,+&]");
+        List<String> result = new ArrayList<>();
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (StringUtils.hasText(trimmed)) result.add(trimmed);
+        }
+        return result;
     }
 
     private Map<String, String> buildAmazonLinks(List<String> items, String audience) {
@@ -327,8 +452,17 @@ public class OutfitSuggestionService {
     private String stripCodeFences(String value) {
         String trimmed = value == null ? "" : value.trim();
         if (trimmed.startsWith("```")) {
-            trimmed = trimmed.replaceFirst("^```json", "").replaceFirst("^```", "").replaceFirst("```$", "").trim();
+            trimmed = trimmed.replaceFirst("(?s)^```(?:json)?\\s*", "");
+            trimmed = trimmed.replaceFirst("(?s)\\s*```$", "");
         }
-        return trimmed;
+        return trimmed.trim();
     }
+
+    private record OpenAiOutfitResult(
+            String reasoning,
+            List<String> options,
+            List<String> items,
+            String style) {
+    }
+
 }

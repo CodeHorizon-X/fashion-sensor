@@ -9,6 +9,69 @@ body {
   color: #ffffff;
 }
 
+header {
+  background: rgba(5, 5, 5, 0.9);
+}
+
+
+.hero-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-copy h1 {
+  max-width: 11ch;
+}
+
+.editor-note-wrap {
+  position: relative;
+  z-index: 3;
+}
+
+.editor-note-card {
+  max-width: 38rem;
+}
+
+.hero-primary-cta {
+  color: #000000 !important;
+}
+
+.header-actions {
+  flex: 0 0 auto;
+}
+
+.search-shell {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  max-width: none;
+  transition: width 300ms ease;
+}
+
+.search-shell:focus-within {
+  width: min(16rem, calc(100vw - 16rem));
+}
+
+#globalSearch {
+  width: 2.5rem;
+  color: transparent !important;
+  caret-color: transparent;
+  overflow: hidden;
+}
+
+#globalSearch::placeholder {
+  color: transparent !important;
+}
+
+#globalSearch:focus {
+  width: 100%;
+  color: #ffffff !important;
+  caret-color: currentColor;
+}
+
+#globalSearch:focus::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
 #exploreGrid, #outfitCards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -537,6 +600,48 @@ body {
   color: #d1563d;
 }
 
+/* Agent Reasoning Card */
+.agent-reasoning-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-reasoning-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  animation: reasoning-shimmer 3s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes reasoning-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.agent-reasoning-text {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.78);
+  font-style: italic;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  padding-left: 1rem;
+  margin-top: 1rem;
+}
+
+body.light-mode .agent-reasoning-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+body.light-mode .agent-reasoning-text {
+  color: rgba(26, 26, 26, 0.75) !important;
+  border-left-color: rgba(0, 0, 0, 0.2) !important;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -546,6 +651,14 @@ body {
 @media (max-width: 767px) {
   .hero-image {
     background-position: 62% center;
+  }
+
+  .hero-copy h1 {
+    max-width: 10ch;
+  }
+
+  .search-shell:focus-within {
+    width: min(13rem, calc(100vw - 12rem));
   }
 
   .promo-card h3 {
@@ -562,12 +675,30 @@ body {
   }
 }
 
+@media (min-width: 1024px) {
+  .editor-note-wrap {
+    transform: translateX(4rem);
+  }
+}
+
+@media (min-width: 1280px) {
+  .editor-note-wrap {
+    transform: translateX(7rem);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
   *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ====================================================
@@ -575,34 +706,48 @@ body {
    ==================================================== */
 
 body.light-mode {
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 28%),
-    linear-gradient(180deg, #fbf9f4 0%, #f4eee2 46%, #e9e3d6 100%);
-  color: #000000;
+  background: #f9fafb;
+  color: #1a1a1a;
 }
 
-body.light-mode p,
-body.light-mode h1,
-body.light-mode h2,
-body.light-mode h3,
-body.light-mode h4,
-body.light-mode span {
-  color: #000000 !important;
+
+body.light-mode main > section:not(:first-child) p,
+body.light-mode main > section:not(:first-child) h1,
+body.light-mode main > section:not(:first-child) h2,
+body.light-mode main > section:not(:first-child) h3,
+body.light-mode main > section:not(:first-child) h4,
+body.light-mode footer p,
+body.light-mode footer span {
+  color: #1a1a1a !important;
 }
 
-body.light-mode .text-white,
+
 body.light-mode header .text-white,
-body.light-mode .text-white\/80,
-body.light-mode .text-white\/70,
-body.light-mode .text-white\/55,
-body.light-mode .text-white\/60,
-body.light-mode .text-white\/65 {
-  color: #000000 !important;
+body.light-mode header .text-white\/80,
+body.light-mode header .text-white\/70,
+body.light-mode header .text-white\/55,
+body.light-mode header .text-white\/60,
+body.light-mode header .text-white\/65,
+body.light-mode main > section:not(:first-child) .text-white,
+body.light-mode main > section:not(:first-child) .text-white\/80,
+body.light-mode main > section:not(:first-child) .text-white\/70,
+body.light-mode main > section:not(:first-child) .text-white\/55,
+body.light-mode main > section:not(:first-child) .text-white\/60,
+body.light-mode main > section:not(:first-child) .text-white\/65,
+body.light-mode footer .text-white,
+body.light-mode footer .text-white\/80,
+body.light-mode footer .text-white\/70,
+body.light-mode footer .text-white\/55,
+body.light-mode footer .text-white\/60,
+body.light-mode footer .text-white\/65 {
+  color: #1a1a1a !important;
 }
+
 
 body.light-mode .text-ink {
-  color: #000000 !important;
+  color: #1a1a1a !important;
 }
+
 
 body.light-mode header,
 body.light-mode .result-panel,
@@ -612,18 +757,36 @@ body.light-mode .outfit-option-card,
 body.light-mode .pinterest-card,
 body.light-mode .category-tab,
 body.light-mode section.rounded-\[2rem\] {
-  background: rgba(255, 255, 255, 0.45) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  color: #000000 !important;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+
+body.light-mode header {
+  background: rgba(249, 250, 251, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.06) !important;
+}
+
+
+body.light-mode header a,
+body.light-mode header button {
+  color: #1a1a1a !important;
+}
+
+body.light-mode header .nav-tab:not(.is-active) {
+  color: rgba(17, 17, 17, 0.58) !important;
 }
 
 body.light-mode .field-input {
-  background: rgba(255, 255, 255, 0.45) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  color: #000000 !important;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08) !important;
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
+
 
 body:not(.light-mode) .field-input {
   color: #ffffff !important;
@@ -631,36 +794,60 @@ body:not(.light-mode) .field-input {
 
 /* High Contrast Active States */
 body:not(.light-mode) .nav-tab.is-active,
-body:not(.light-mode) .category-tab.is-active,
-body:not(.light-mode) .outfit-option-card.is-active {
+body:not(.light-mode) .category-tab.is-active {
   background: rgba(255, 255, 255, 1) !important;
   color: #000000 !important;
   border-color: rgba(255, 255, 255, 1) !important;
 }
 
+body:not(.light-mode) .outfit-option-card.is-active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  color: #ffffff !important;
+}
+
+body:not(.light-mode) .outfit-option-card.is-active .outfit-option-kicker,
+body:not(.light-mode) .outfit-option-card.is-active .outfit-option-title {
+  color: #ffffff !important;
+}
+
 body.light-mode .nav-tab.is-active,
-body.light-mode .category-tab.is-active,
-body.light-mode .outfit-option-card.is-active {
+body.light-mode .category-tab.is-active {
   background: #000000 !important;
   color: #ffffff !important;
   border-color: #000000 !important;
+}
+
+body.light-mode .outfit-option-card.is-active {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #111111 !important;
+}
+
+body.light-mode .outfit-option-card.is-active .outfit-option-kicker,
+body.light-mode .outfit-option-card.is-active .outfit-option-title {
+  color: #111111 !important;
 }
 
 body.light-mode .item-card-title,
 body.light-mode .product-title,
 body.light-mode .pinterest-card-title,
 body.light-mode .outfit-option-title,
-body.light-mode h1, body.light-mode h2, body.light-mode h3 {
-  color: #111111 !important;
+body.light-mode main > section:not(:first-child) h1,
+body.light-mode main > section:not(:first-child) h2,
+body.light-mode main > section:not(:first-child) h3 {
+  color: #1a1a1a !important;
 }
+
 
 body.light-mode .product-kicker, 
 body.light-mode .item-card-kicker, 
 body.light-mode .outfit-option-kicker,
 body.light-mode .result-kicker,
 body.light-mode .field-label {
-  color: rgba(17, 17, 17, 0.6) !important;
+  color: rgba(26, 26, 26, 0.6) !important;
 }
+
 
 body.light-mode .shop-link, body.light-mode .submit-button {
   background: #111111;
@@ -682,13 +869,21 @@ body.light-mode .secondary-action {
 body.light-mode #globalSearch {
   border-color: rgba(0,0,0,0.2) !important;
   background-color: rgba(255,255,255,0.6) !important;
-  color: #000000 !important;
+  color: transparent !important;
   font-weight: bold;
 }
 
 body.light-mode #globalSearch::placeholder {
-  color: #000000 !important;
+  color: transparent !important;
   font-weight: bold;
+}
+
+body.light-mode #globalSearch:focus {
+  color: #000000 !important;
+}
+
+body.light-mode #globalSearch:focus::placeholder {
+  color: rgba(0, 0, 0, 0.55) !important;
 }
 
 body:not(.light-mode) #globalSearch {
@@ -696,14 +891,41 @@ body:not(.light-mode) #globalSearch {
 }
 
 body:not(.light-mode) #globalSearch::placeholder {
-  color: #ffffff !important;
+  color: transparent !important;
   font-weight: bold;
+}
+
+body:not(.light-mode) #globalSearch:focus::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 body.light-mode #themeToggle {
   border-color: rgba(0,0,0,0.1) !important;
   background-color: rgba(255,255,255,0.6) !important;
   color: #111111 !important;
+}
+
+body.light-mode .hero-primary-cta {
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+
+body.light-mode .hero-copy,
+body.light-mode .hero-copy p,
+body.light-mode .hero-copy h1,
+body.light-mode .hero-copy a:not(.hero-primary-cta) {
+  color: #ffffff !important;
+}
+
+body.light-mode .editor-note-card,
+body.light-mode .editor-note-card p,
+body.light-mode .editor-note-card span {
+  color: #ffffff !important;
+}
+
+body.light-mode .editor-note-card {
+  background: rgba(17, 17, 17, 0.74) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Base states for dynamic SVGs */
