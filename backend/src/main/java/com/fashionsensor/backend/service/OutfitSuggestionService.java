@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.netty.http.client.HttpClient;
+import io.netty.resolver.DefaultAddressResolverGroup;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -30,8 +32,7 @@ import java.util.Set;
 public class OutfitSuggestionService {
 
     private static final Logger logger = LoggerFactory.getLogger(OutfitSuggestionService.class);
-    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final int MAX_RATE_LIMIT_RETRIES = 2;
+    private static final String OPENAI_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
@@ -43,10 +44,21 @@ public class OutfitSuggestionService {
             ObjectMapper objectMapper,
             @Value("${openai.api.key:}") String openAiApiKey,
             @Value("${openai.model:gpt-4o-mini}") String openAiModel) {
-        this.webClient = webClientBuilder.baseUrl(OPENAI_API_URL).build();
+        // Use the JVM's default (Java) DNS resolver instead of Netty's async resolver.
+        // Netty's resolver fails with DnsNameResolverTimeoutException in some network
+        // environments; DefaultAddressResolverGroup falls back to the OS DNS stack.
+        HttpClient httpClient = HttpClient.create()
+                .resolver(DefaultAddressResolverGroup.INSTANCE);
+        this.webClient = webClientBuilder
+                .baseUrl(OPENAI_API_URL)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
         this.objectMapper = objectMapper;
-        this.openAiApiKey = openAiApiKey;
+        // Trim whitespace that can sneak in from .env files (e.g. "KEY= value" → " value")
+        this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
         this.openAiModel = defaultIfBlank(openAiModel, "gpt-4o-mini");
+        logger.info("OutfitSuggestionService initialized. model={} apiKeyLength={}",
+                this.openAiModel, this.openAiApiKey.length());
     }
 
     public SuggestionResponse generateSuggestion(Map<String, String> data, MultipartFile photo) {
@@ -64,9 +76,6 @@ public class OutfitSuggestionService {
             }
 
             return toSuggestionResponse(result, audience, style);
-        } catch (OpenAiRateLimitException e) {
-            logger.warn("OpenAI rate limit while generating standard suggestion. Returning empty AI response.", e);
-            return minimalResponse(audience, style);
         } catch (Exception e) {
             logger.error("OpenAI outfit suggestion failed. Returning API-failure fallback.", e);
             return fallbackResponse(audience, style);
@@ -91,9 +100,6 @@ public class OutfitSuggestionService {
             response.put("reasoning", result.reasoning());
             response.put("options", result.options());
             return response;
-        } catch (OpenAiRateLimitException e) {
-            logger.warn("OpenAI rate limit while generating agentic suggestion. Returning safe empty options.", e);
-            return safeEmptyOptions();
         } catch (Exception e) {
             logger.error("OpenAI agentic suggestion failed.", e);
             throw new RuntimeException("OpenAI suggestion failed: " + e.getMessage(), e);
@@ -102,7 +108,9 @@ public class OutfitSuggestionService {
 
     private String callOpenAi(String prompt) throws Exception {
         if (!StringUtils.hasText(openAiApiKey)) {
-            throw new IllegalStateException("OPENAI_API_KEY is not configured.");
+            throw new IllegalStateException(
+                    "OPENAI_API_KEY is not configured or is blank. " +
+                    "Check your .env file — ensure there is no space after the '=' sign.");
         }
 
         Map<String, Object> message = Map.of(
@@ -113,7 +121,7 @@ public class OutfitSuggestionService {
         payload.put("model", openAiModel);
         payload.put("messages", List.of(message));
 
-        String rawResponse = postOpenAiWithRetry(payload);
+        String rawResponse = callOpenAiOnce(payload);
 
         if (!StringUtils.hasText(rawResponse)) {
             throw new IllegalStateException("OpenAI returned an empty response body.");
@@ -134,54 +142,27 @@ public class OutfitSuggestionService {
         return content;
     }
 
-    private String postOpenAiWithRetry(Map<String, Object> payload) {
-        for (int attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
-            try {
-                return webClient.post()
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + openAiApiKey)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(payload)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .block();
-            } catch (WebClientResponseException.TooManyRequests e) {
-                logRateLimit(attempt, e);
-                if (attempt == MAX_RATE_LIMIT_RETRIES) {
-                    throw new OpenAiRateLimitException("OpenAI rate limit after retries.", e);
-                }
-                sleepBeforeRetry(attempt);
-            } catch (WebClientResponseException e) {
-                if (e.getStatusCode().value() == 429) {
-                    logRateLimit(attempt, e);
-                    if (attempt == MAX_RATE_LIMIT_RETRIES) {
-                        throw new OpenAiRateLimitException("OpenAI rate limit after retries.", e);
-                    }
-                    sleepBeforeRetry(attempt);
-                } else {
-                    throw e;
-                }
-            }
-        }
-
-        throw new OpenAiRateLimitException("OpenAI rate limit retry loop ended unexpectedly.", null);
-    }
-
-    private void logRateLimit(int attempt, WebClientResponseException e) {
-        logger.warn("OpenAI rate limit hit. attempt={}/{} status={} body={}",
-                attempt + 1,
-                MAX_RATE_LIMIT_RETRIES + 1,
-                e.getStatusCode().value(),
-                e.getResponseBodyAsString());
-    }
-
-    private void sleepBeforeRetry(int attempt) {
-        long delayMs = (attempt + 1L) * 1000L;
-        logger.warn("Retrying OpenAI request after {}ms due to rate limit.", delayMs);
+    /**
+     * Makes a single, non-retrying HTTP POST to the OpenAI completions endpoint.
+     * Any error is thrown immediately as a {@link RuntimeException} — no retry,
+     * no back-off, no blocking thread accumulation.
+     */
+    private String callOpenAiOnce(Map<String, Object> payload) {
         try {
-            Thread.sleep(delayMs);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new OpenAiRateLimitException("Interrupted while waiting to retry OpenAI request.", e);
+            String response = webClient.post()
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + openAiApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(payload)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            if (response == null) {
+                throw new IllegalStateException("OpenAI returned a null response body.");
+            }
+            return response;
+        } catch (RuntimeException e) {
+            logger.error("OpenAI single-shot call failed: {}", e.getMessage());
+            throw new RuntimeException("OpenAI API call failed: " + e.getMessage(), e);
         }
     }
 
@@ -484,9 +465,4 @@ public class OutfitSuggestionService {
             String style) {
     }
 
-    private static class OpenAiRateLimitException extends RuntimeException {
-        OpenAiRateLimitException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }

@@ -99,23 +99,28 @@ public class FashionController {
 
     /**
      * Agentic suggestion endpoint.
-     * Uses OpenAI for JSON outfit options consumed directly by the frontend.
+     * Routes directly to OutfitSuggestionService (OpenAI wrapper) — Gemini removed.
      */
     @PostMapping(value = "/agentic-suggest",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> agenticSuggest(@RequestBody SuggestionRequest request) {
         try {
-            logger.info("Received agentic suggestion request. gender={}, purpose={}, notes='{}', history.size={}",
-                    request.gender(), request.purpose(), request.notes(),
+            logger.info("Received agentic suggestion request. gender={}, purpose={}, styleVibe={}, notes='{}', history.size={}",
+                    request.gender(), request.purpose(), request.styleVibe(), request.notes(),
                     request.history() == null ? 0 : request.history().size());
 
-            return ResponseEntity.ok(outfitSuggestionService.generateAgenticSuggestion(request));
+            Map<String, Object> result = outfitSuggestionService.generateAgenticSuggestion(request);
+            return ResponseEntity.ok(result);
 
         } catch (Exception e) {
-            logger.error("OpenAI agentic suggestion failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "OpenAI suggestion failed: " + e.getMessage()));
+            logger.error("OpenAI agentic suggestion failed — returning non-blocking fallback response", e);
+
+            Map<String, Object> errorBody = new LinkedHashMap<>();
+            errorBody.put("reasoning", "");
+            errorBody.put("options", List.of());
+            errorBody.put("error", "AI Stylist is gathering data, please try again momentarily.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody);
         }
     }
 
