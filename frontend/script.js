@@ -187,7 +187,14 @@ function handleImagePreview(event) {
 async function handleSubmit(event) {
   event.preventDefault();
 
+  // ── Immediately lock the button on click to prevent overlapping requests ──
+  submitButton.disabled = true;
+  if (buttonLabel) buttonLabel.textContent = "Styling... ⏳";
+
   if (!canStartAiRequest("outfit request")) {
+    // canStartAiRequest already logged/warned; restore button and bail.
+    submitButton.disabled = false;
+    if (buttonLabel) buttonLabel.textContent = "Get Outfit 🔥";
     return;
   }
 
@@ -211,7 +218,7 @@ async function handleSubmit(event) {
 
   try {
     // Log session history so deduplication can be verified in the browser console
-    console.log("[Fashion Sensor] Sending sessionHistory to OpenAI blacklist:", [...sessionHistory]);
+    console.log("[Fashion Sensor] Sending sessionHistory to AI blacklist:", [...sessionHistory]);
 
     const agenticResponse = await fetch(AGENTIC_API_URL, {
       method: "POST",
@@ -226,7 +233,6 @@ async function handleSubmit(event) {
       }),
     });
 
-    // OpenAI is the source of truth for outfit text.
     if (agenticResponse.ok) {
       const agenticData = await agenticResponse.json();
 
@@ -258,7 +264,7 @@ async function handleSubmit(event) {
           agentReasoningSection.classList.remove("hidden");
         }
 
-        // Append OpenAI options to sessionHistory (deduplication blacklist)
+        // Append options to sessionHistory (deduplication blacklist)
         agenticData.options.forEach(option => {
           if (option && !sessionHistory.includes(option)) {
             sessionHistory.push(option);
@@ -267,7 +273,7 @@ async function handleSubmit(event) {
         if (sessionHistory.length > 15) sessionHistory.splice(0, sessionHistory.length - 15);
 
       } else {
-        console.warn("Backend returned no OpenAI options, likely due to rate limiting.");
+        console.warn("Backend returned no options, likely due to rate limiting.");
         outfitCards.innerHTML = '<p style="color: #ff6b6b; padding: 1rem;">The AI stylist is busy right now. Please wait a moment and try again.</p>';
         setStatus("AI stylist is rate limited. Please wait a moment.", "error");
       }
@@ -275,7 +281,7 @@ async function handleSubmit(event) {
     } else {
       const agenticErr = await agenticResponse.json().catch(() => ({}));
       console.error("Backend Error:", agenticErr);
-      outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${agenticErr.error || "Please check your OpenAI API key and try again."}</p>`;
+      outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${agenticErr.error || "Please check your API key and try again."}</p>`;
       setStatus("Error: Could not connect to AI stylist.", "error");
     }
 
@@ -284,8 +290,16 @@ async function handleSubmit(event) {
     outfitCards.innerHTML = `<p style="color: #ff6b6b; padding: 1rem;">Error: Could not connect to AI stylist. ${error.message}</p>`;
     setStatus(error.message || "Something went wrong while contacting the server.", "error");
   } finally {
+    // ── Restore loading state immediately so spinners/skeletons clear ──
     setLoadingState(false);
     markRequestFinished();
+
+    // ── Absolute 3-second cooldown: button stays disabled until the timer
+    //    fires — physically prevents multi-click overlaps ──
+    setTimeout(() => {
+      submitButton.disabled = false;
+      if (buttonLabel) buttonLabel.textContent = "Get Outfit 🔥";
+    }, 3000);
   }
 }
 
