@@ -30,7 +30,7 @@ const themeToggle = document.getElementById("themeToggle");
 const themeIcon = document.getElementById("themeIcon");
 const agentReasoning = document.getElementById("agent-reasoning");
 const agentReasoningSection = document.getElementById("agent-reasoning-section");
-const API_BASE_URL = "http://localhost:8081";
+const API_BASE_URL = "https://fashion-sensor.onrender.com";
 const API_URL = `${API_BASE_URL}/api/suggest`;
 const AGENTIC_API_URL = `${API_BASE_URL}/api/agentic-suggest`;
 const REQUEST_COOLDOWN_MS = 2000;
@@ -366,19 +366,19 @@ function handleSearch(event) {
     event.preventDefault();
     const query = event.target.value.trim();
     if (!query) return;
-    
+
     // Switch to Explore section to see live results
     setActiveSection("explore");
     activeFilterTitle.textContent = "Live Search";
     activeFilterDescription.textContent = `Showing real-time results for "${query}"`;
-    
+
     fetchUnsplashImages(query + " fashion outfit");
     return;
   }
 
   // Filter fallback
   const query = event.target.value.toLowerCase().trim();
-  
+
   // Filter Explore Data if on explore screen
   document.querySelectorAll("#exploreGrid .product-card").forEach((card) => {
     const text = card.textContent.toLowerCase();
@@ -400,7 +400,7 @@ function handleSearch(event) {
 function toggleTheme() {
   document.body.classList.toggle("light-mode");
   const isLight = document.body.classList.contains("light-mode");
-  
+
   if (isLight) {
     // Sun Icon
     themeIcon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
@@ -423,14 +423,14 @@ function setActiveSection(sectionId) {
 function applyNegativeConstraints(baseQuery) {
   const notesElement = document.getElementById("notes");
   if (!notesElement) return baseQuery;
-  
+
   const notesText = notesElement.value.toLowerCase().trim();
   if (!notesText) return baseQuery;
 
   // Regex looks for "avoid", "no", "without", "minus", "not" followed by a word
   const negativeMatches = notesText.match(/(?:avoid|no|without|minus|never|not)\s+([a-z]+)/g);
   let finalQuery = baseQuery;
-  
+
   if (negativeMatches) {
     negativeMatches.forEach(match => {
       const parts = match.split(/\s+/);
@@ -439,20 +439,20 @@ function applyNegativeConstraints(baseQuery) {
       }
     });
   }
-  
+
   return finalQuery.trim();
 }
 
 async function fetchUnsplashImages(query) {
   exploreGrid.innerHTML = Array.from({ length: 6 }).map(() => '<div class="skeleton" style="height: 380px; border-radius: 1.8rem;"></div>').join("");
-  
+
   const constrainedQuery = applyNegativeConstraints(query);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/unsplash?query=${encodeURIComponent(constrainedQuery)}&per_page=6&orientation=portrait`);
     if (!response.ok) throw new Error("Rate limit or auth issue with backend Unsplash proxy.");
     const data = await response.json();
-    
+
     if (data.results && data.results.length > 0) {
       // Map Unsplash results perfectly into our Explore cards
       const unsplashCards = data.results.map((photo, index) => ({
@@ -484,7 +484,7 @@ async function renderExploreGrid() {
 
   // Auto-build the Unsplash live search query based on selected chips
   const query = `${capitalize(audience)} ${style === "all" ? "Fashion" : formatLabel(style)} Fashion Outfit`;
-  
+
   fetchUnsplashImages(query);
 }
 
@@ -545,7 +545,7 @@ async function loadPinterestImages(query) {
 
   const normalizedQuery = String(query || buildPinterestQueryFromState("casual", uiState.audience)).replace(/\s+/g, " ").trim();
   const constrainedQuery = applyNegativeConstraints(normalizedQuery);
-  
+
   pinterestContainer.innerHTML = Array.from({ length: 4 }).map(() => '<div class="skeleton" style="height: 380px; border-radius: 1.5rem;"></div>').join("");
 
   try {
